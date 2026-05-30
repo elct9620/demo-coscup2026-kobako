@@ -188,6 +188,61 @@ class ReadOnlySandboxTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------------------------------
+  # params: keyword — validate_params gate and Service::Params in-script access
+  # ---------------------------------------------------------------------------
+
+  test "call with valid params makes value accessible via Service::Params.fetch in script" do
+    result = @sandbox.call('Service::Params.fetch("key")', params: { "key" => "value" })
+    assert result[:ok], "expected ok: true, got #{result.inspect}"
+    assert_equal "value", result[:result]
+  end
+
+  test "call with valid Integer param returns Integer from Service::Params.fetch" do
+    result = @sandbox.call('Service::Params.fetch("limit")', params: { "limit" => 5 })
+    assert result[:ok]
+    assert_equal 5, result[:result]
+  end
+
+  test "call with absent param key returns nil from Service::Params.fetch" do
+    result = @sandbox.call('Service::Params.fetch("missing")', params: {})
+    assert result[:ok]
+    assert_nil result[:result]
+  end
+
+  test "call with non-Hash params returns InvalidParamsError result" do
+    result = @sandbox.call("1 + 1", params: "not_a_hash")
+    refute result[:ok]
+    assert_equal "InvalidParamsError", result[:error][:type]
+  end
+
+  test "call with non-String key returns InvalidParamsError result" do
+    result = @sandbox.call("1 + 1", params: { 42 => "v" })
+    refute result[:ok]
+    assert_equal "InvalidParamsError", result[:error][:type]
+  end
+
+  test "call with disallowed value type returns InvalidParamsError result" do
+    result = @sandbox.call("1 + 1", params: { "k" => Object.new })
+    refute result[:ok]
+    assert_equal "InvalidParamsError", result[:error][:type]
+  end
+
+  test "call with empty params: {} succeeds and Service::Params.fetch returns nil" do
+    result = @sandbox.call('Service::Params.fetch("x")', params: {})
+    assert result[:ok]
+    assert_nil result[:result]
+  end
+
+  test "InvalidParamsError result never enters the sandbox — script is never executed" do
+    # If the sandbox were entered, Service::Events.count would execute and the
+    # result would have :result.  Instead, validate_params short-circuits before
+    # build_sandbox, so no :result key appears.
+    result = @sandbox.call("Service::Events.count", params: "bad")
+    refute result[:ok]
+    refute result.key?(:result), "script must not have run when params are invalid"
+  end
+
+  # ---------------------------------------------------------------------------
   # Default options
   # ---------------------------------------------------------------------------
 
