@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r 'select(.tool_input.file_path | endswith(\".rb\")).tool_input.file_path' | xargs -r bundle exec rubocop -a --force-exclusion",
+            "statusMessage": "RuboCop autofix"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bundle exec rails test",
+            "statusMessage": "Running tests"
+          }
+        ]
+      }
+    ]
+  }
+}
