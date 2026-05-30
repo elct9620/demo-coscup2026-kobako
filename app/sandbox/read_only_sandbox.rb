@@ -47,6 +47,11 @@
 #   Service::Metrics.daily_counts(since: "2026-01-01")
 #   Service::Metrics.top_names(limit: 5)
 class ReadOnlySandbox
+  # Raised internally when HTTP query params fail the type validation gate.
+  # Never propagates to callers — it is always converted to a structured result
+  # by +#validate_params+ before the sandbox is entered.
+  InvalidParamsError = Class.new(StandardError)
+
   # Wall-clock timeout per invocation (seconds, Float).
   # Kobako default is 60 s; tighter here to cap LLM-generated runaway loops.
   DEFAULT_TIMEOUT = 5.0
@@ -62,6 +67,12 @@ class ReadOnlySandbox
 
   # Execute +script+ inside a fresh read-only Kobako sandbox.
   #
+  # +params+ is an optional Hash of query parameters to expose as
+  # Service::Params inside the sandbox.  Keys must be Strings; values must be
+  # String, Integer, or nil (wire-representable HTTP-natural types).  Any other
+  # type causes an immediate InvalidParamsError result without entering the
+  # sandbox — the script never runs with invalid input.
+  #
   # Returns a Hash with one of two shapes:
   #
   #   Success: { ok: true,  result: <wire-representable value> }
@@ -71,8 +82,11 @@ class ReadOnlySandbox
   # Never raises — all Kobako exceptions are caught and converted to the
   # structured error shape so callers (#6 error-as-feedback, #9 HTTP response)
   # can act on them without their own rescue clauses.
-  def call(script)
-    sandbox = build_sandbox
+  def call(script, params: {})
+    validation = validate_params(params)
+    return validation unless validation.nil?
+
+    sandbox = build_sandbox(params)
     value   = sandbox.eval(script)
     { ok: true, result: value }
   rescue Kobako::TimeoutError => e
@@ -89,14 +103,49 @@ class ReadOnlySandbox
 
   private
 
+  # Validate that +params+ is a Hash with String keys and wire-representable
+  # values (String, Integer, nil).  Returns a structured error Hash on failure,
+  # nil on success.
+  #
+  # This guard runs before the sandbox is built so that invalid params never
+  # reach the WASM boundary — the script is never executed with malformed input.
+  def validate_params(params)
+    unless params.is_a?(Hash)
+      return error_result("InvalidParamsError",
+                          InvalidParamsError.new("params must be a Hash, got #{params.class}"))
+    end
+
+    params.each do |key, value|
+      unless key.is_a?(String)
+        return error_result("InvalidParamsError",
+                            InvalidParamsError.new("param keys must be Strings, got #{key.class} (#{key.inspect})"))
+      end
+
+      unless ParamsQuery::ALLOWED_VALUE_TYPES.any? { |t| value.is_a?(t) }
+        return error_result("InvalidParamsError",
+                            InvalidParamsError.new(
+                              "param value for #{key.inspect} must be String, Integer, or nil; got #{value.class}"
+                            ))
+      end
+    end
+
+    nil
+  end
+
   # Build a fresh Kobako::Sandbox with capability boundary:
-  # only EventQuery (Service::Events) and MetricQuery (Service::Metrics)
-  # are bound — no write path is reachable from the script.
-  def build_sandbox
+  # only EventQuery (Service::Events), MetricQuery (Service::Metrics), and
+  # (when params are present) ParamsQuery (Service::Params) are bound —
+  # no write path is reachable from the script.
+  #
+  # Service::Params is always bound so that scripts can unconditionally call
+  # Service::Params.fetch("key") without a NameError when no params are given
+  # (they simply get nil back from an empty ParamsQuery).
+  def build_sandbox(params)
     sandbox = Kobako::Sandbox.new(timeout: @timeout, memory_limit: @memory_limit)
     sandbox.define(:Service)
            .bind(:Events,  EventQuery.new)
            .bind(:Metrics, MetricQuery.new)
+           .bind(:Params,  ParamsQuery.new(params))
     sandbox
   end
 
