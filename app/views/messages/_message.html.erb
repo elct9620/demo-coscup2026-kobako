@@ -12,7 +12,7 @@
   <% if llm_message.tool_call? %>
     <% message.tool_calls.each do |tc| %>
       <p class="text-gray-700 break-all"><span class="font-semibold">Tool:</span> <%= tc.name %></p>
-      <pre class="mt-1 text-xs bg-gray-50 border border-gray-100 rounded p-2 overflow-x-auto whitespace-pre-wrap"><%= tc.arguments[:script] || tc.arguments.to_json %></pre>
+      <pre class="mt-1 text-xs bg-gray-50 border border-gray-100 rounded p-2 overflow-x-auto whitespace-pre-wrap"><%= tc.arguments.with_indifferent_access[:script] || tc.arguments.to_json %></pre>
     <% end %>
   <% else %>
     <pre class="whitespace-pre-wrap break-all text-gray-800"><%= message.content.presence || "(empty)" %></pre>
