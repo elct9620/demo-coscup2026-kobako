@@ -12,6 +12,8 @@
 | **Context** | 一個 use case 一個編排物件（PORO） | `EndpointGeneration`（生成迴圈）、`EndpointReplay`（對外重放） |
 | **Interaction** | 物件在 Context 中扮演的角色 | 綁進沙盒的唯讀查詢角色 `EventQuery`、`MetricQuery` |
 
+> DCI 的 **Interaction role** 即 SPEC 的 **Service**——綁進沙盒、供腳本呼叫的唯讀存取入口；本文件兩詞同義。
+
 ## Directory Mapping
 
 ```
@@ -46,7 +48,7 @@ app/
 └── views/ + Stimulus controllers + TailwindCSS v4
 ```
 
-> RubyLLM 的 `ruby_llm:install` 會建立 `app/agents`、`app/tools`、`app/prompts`、`app/schemas` 目錄與 Chat/Message/ToolCall/Model 四個 model；沿用這些慣例，不另建抽象層。
+> RubyLLM 的 `ruby_llm:install` 會建立 `app/agents`、`app/tools`、`app/prompts` 目錄與 Chat/Message/ToolCall/Model 四個 model；沿用這些慣例，不另建抽象層。（`ruby_llm:install` 亦會生成 `app/schemas`，本 Demo 未用 structured output，故不納入上方目錄樹。）
 
 ## 生成與服務流程
 
@@ -61,7 +63,7 @@ app/
           → ReadOnlySandbox 試跑（綁定 EventQuery/MetricQuery、唯讀連線）
           → 回傳 result 或結構化 error（error-as-feedback）
         ← Agent 據結果修正並重試（before_tool_call 計數封頂 = 有限迭代）
-      → 試跑成功且回傳可序列化值 → 建立 Endpoint(slug, script)
+      → 試跑成功且回傳值可經 MessagePack 序列化（不可序列化值在 wire 邊界即視為 error，回饋 LLM）→ 建立 Endpoint(slug, script)
   → 每一輪 ToolCall/Message 經 broadcasts_to Turbo Stream 即時呈現
 ```
 
@@ -81,13 +83,13 @@ GET /e/:slug?params...
 
 | 技術 | gem / 版本 | 所在層 | 用法重點 |
 |------|-----------|--------|----------|
-| **Kobako** | `kobako` ~> 0.4 | sandbox / Interaction | mruby-in-WASM 沙盒。`Kobako::Sandbox.new(timeout:, memory_limit:)`；`#define(:NS).bind(:Member, obj)` 綁定唯讀 Service；`#run(target, *args, **kwargs)` / `#eval`；非 wire 型別自動轉 `Handle` 代理供鏈式呼叫；MessagePack 為唯一 wire codec；guest 無 require/網路/檔案/ENV，唯讀為設計保證。每次調用全新狀態。 |
-| **RubyLLM** | `ruby_llm` ~> 1.15 | agents / tools | `EndpointBuilderAgent < RubyLLM::Agent`（macros：`model`、`instructions`、`tools`）；`RunScriptTool < RubyLLM::Tool`（`desc` + `execute`）；指令置於 `app/prompts/`；串流委派 `complete`/`each`。 |
+| **Kobako** | `kobako` ~> 0.4 _(待 `bundle add` 回填)_ | sandbox / Interaction | mruby-in-WASM 沙盒。`Kobako::Sandbox.new(timeout:, memory_limit:)`；`#define(:NS).bind(:Member, obj)` 綁定唯讀 Service；`#run(target, *args, **kwargs)` / `#eval`；非 wire 型別自動轉 `Handle` 代理供鏈式呼叫；MessagePack 為唯一 wire codec；guest 無 require/網路/檔案/ENV，唯讀為設計保證。每次調用全新狀態。 |
+| **RubyLLM** | `ruby_llm` ~> 1.15 _(待 `bundle add` 回填)_ | agents / tools | `EndpointBuilderAgent < RubyLLM::Agent`（macros：`model`、`instructions`、`tools`）；`RunScriptTool < RubyLLM::Tool`（`desc` + `execute`）；指令置於 `app/prompts/`；串流委派 `complete`/`each`。 |
 | **LMStudio** | （外部，OpenAI 相容） | — | 預設 `http://localhost:1234/v1`；`config.openai_use_system_role = true`；Agent 用 `model "<id>", provider: :openai, assume_model_exists: true`。 |
-| **Hotwire** | `turbo-rails`、`stimulus-rails` | Frameworks | 生成 UI 與表單互動。 |
-| **TailwindCSS** | v4 | Frameworks | 視覺樣式。 |
-| **Action Cable** | `solid_cable` | Frameworks | 承載 Turbo Stream 即時更新。 |
-| **Solid Queue** | `solid_queue` | Frameworks | `EndpointGenerationJob` 背景執行生成迴圈，不阻塞請求。 |
+| **Hotwire** | `turbo-rails`、`stimulus-rails` | 框架支援 | 生成 UI 與表單互動。 |
+| **TailwindCSS** | v4 | 框架支援 | 視覺樣式。 |
+| **Action Cable** | `solid_cable` | 框架支援 | 承載 Turbo Stream 即時更新。 |
+| **Solid Queue** | `solid_queue` | 框架支援 | `EndpointGenerationJob` 背景執行生成迴圈，不阻塞請求。 |
 | **SQLite** | `sqlite3` ~> 2.1 | Data | 主資料庫；額外配置唯讀 reading 連線（見下）。 |
 
 ### LLM 設定（Rails.application.config）
@@ -106,7 +108,7 @@ config.x.llm.model    = ENV.fetch("LLM_MODEL", "<lmstudio-model-id>")
 兩層各自獨立成立：
 
 1. **能力邊界（第一層）**：沙盒只綁定 `EventQuery`、`MetricQuery` 兩個唯讀查詢角色，沒有任何寫入入口。腳本與宿主互動的唯一管道即這兩個 Service。
-2. **SQL 邊界（第二層）**：查詢角色走 Rails 多資料庫的 reading 連線，該連線開啟 SQLite `PRAGMA query_only = 1`（或 `?mode=ro`）。任何到達資料庫的寫入在連線層被拒絕。
+2. **SQL 邊界（第二層）**：查詢角色走 Rails 多資料庫的 reading 連線，該連線以 **SQLite 唯讀模式（`mode=ro`）開檔**——寫入在**開檔／驅動層**即被拒，此模式於連線存活期間無法被 guest 翻轉，對應 SPEC「任何到達資料庫的寫入在連線層被拒絕」不變式。
 
 ```ruby
 # config/database.yml（節錄）
@@ -116,11 +118,12 @@ production:
     database: storage/production.sqlite3
   reading:
     <<: *default
-    database: storage/production.sqlite3   # 同檔，唯讀角色
-    replica: true
+    # 以 SQLite URI 唯讀模式開檔：寫入於開檔／驅動層即被拒（連線層保證）
+    database: "file:storage/production.sqlite3?mode=ro"
+    replica: true   # 並於 AR 層標記唯讀（連線角色為 replica → ActiveRecord::ReadOnlyError）
 ```
 
-查詢角色以 `connected_to(role: :reading)` 包覆，並於連線建立時設定 `query_only`。
+查詢角色以 `connected_to(role: :reading)` 包覆。連線層唯讀由 `mode=ro` 保證（最強、開檔即拒）；`replica: true` 提供 AR 層的額外 `ActiveRecord::ReadOnlyError` 防護。如需執行期再加一道縱深防禦，可於連線建立時補設 `PRAGMA query_only = 1`，但它屬執行期 PRAGMA、強度弱於 `mode=ro`，僅作輔助。
 
 ## Dependency Guidelines
 
@@ -132,7 +135,7 @@ production:
 
 ### 兩層唯讀防禦（Two-layer read-only defense）
 - **When to apply**：任何讓不可信腳本接觸資料庫的路徑。
-- **Shape**：能力邊界（沙盒只綁唯讀 Service）+ SQL 邊界（reading 連線 `query_only`），兩層獨立。
+- **Shape**：能力邊界（沙盒只綁唯讀 Service）+ SQL 邊界（reading 連線以 `mode=ro` 開檔唯讀），兩層獨立。
 - **Canonical example**：`app/sandbox/read_only_sandbox.rb`、`app/sandbox/event_query.rb`。
 - **Forces this resolves**：Blast radius（沙盒逃逸／寫入落地會摧毀 Demo 核心論點）。
 - **Revisit if**：需支援寫入端點，或改用非 SQLite 資料庫。
