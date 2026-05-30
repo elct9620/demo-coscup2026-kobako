@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_31_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_31_000002) do
   create_table "chats", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "model_id"
@@ -36,6 +36,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_31_000001) do
     t.index ["name", "occurred_at"], name: "index_events_on_name_and_occurred_at"
     t.index ["name"], name: "index_events_on_name"
     t.index ["occurred_at"], name: "index_events_on_occurred_at"
+  end
+
+  create_table "generation_requests", force: :cascade do |t|
+    t.integer "chat_id"
+    t.datetime "created_at", null: false
+    t.integer "endpoint_id"
+    t.text "error_message"
+    t.text "requirement", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chat_id"], name: "index_generation_requests_on_chat_id"
+    t.index ["endpoint_id"], name: "index_generation_requests_on_endpoint_id"
   end
 
   create_table "messages", force: :cascade do |t|
@@ -94,6 +106,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_31_000001) do
   end
 
   add_foreign_key "chats", "models"
+  add_foreign_key "generation_requests", "chats"
+  add_foreign_key "generation_requests", "endpoints"
   add_foreign_key "messages", "chats"
   add_foreign_key "messages", "models"
   add_foreign_key "messages", "tool_calls"

@@ -7,12 +7,17 @@ Rails.application.routes.draw do
 
   # Dynamic endpoint replay service — consumer-facing read-only JSON API.
   # Each slug maps to a persisted, LLM-validated mruby script replayed on demand.
+  # Must be declared before resources :endpoints to avoid slug/id route collision.
   get "e/:slug", to: "dynamic_endpoints#show", as: :dynamic_endpoint
+
+  # Operator-facing generation UI (Hotwire).
+  # Only new/create/show are needed: there is no list, edit, or delete.
+  resources :endpoints, only: %i[new create show]
+
+  # Root → generation form.
+  root "endpoints#new"
 
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
-
-  # Defines the root path route ("/")
-  # root "posts#index"
 end

@@ -6,23 +6,28 @@ require "test_helper"
 # EndpointGeneration context in the background via SolidQueue (production)
 # or the :async adapter (development).
 #
+# Signature change from #12:
+#   Old (pre-#12): perform(requirement)
+#   New (post-#12): perform(generation_request_id)
+#
+#   The Job now looks up the GenerationRequest by id, reads its requirement,
+#   calls EndpointGeneration, and updates the record's status.
+#
 # Mock strategy:
-#   EndpointGeneration is intercepted at the class level by temporarily
-#   redefining EndpointGeneration.new via define_singleton_method, then
-#   restoring the original method.  This avoids any mocking library and
-#   works with Minitest 6 (which removed minitest/mock).
+#   EndpointGeneration is intercepted at the class level — same technique
+#   as before (define_singleton_method on .new).
 #
-#   All test doubles are simple PORO fakes defined inline — no framework
-#   dependency required.
-#
-#   EndpointGeneration internals are tested separately in
-#   test/contexts/endpoint_generation_test.rb — not duplicated here.
+#   GenerationRequest records are created in the test DB; no mocking needed
+#   for Data.
 #
 # Queue adapter:
-#   ActiveJob::TestCase sets the queue adapter to :test automatically, so
-#   assert_enqueued_with / perform_enqueued_jobs work without a real worker.
+#   ActiveJob::TestCase sets the queue adapter to :test automatically.
 class EndpointGenerationJobTest < ActiveJob::TestCase
   REQUIREMENT = "count all events"
+
+  setup do
+    @generation_request = GenerationRequest.create!(requirement: REQUIREMENT)
+  end
 
   # ---------------------------------------------------------------------------
   # Enqueue behaviour
@@ -30,13 +35,13 @@ class EndpointGenerationJobTest < ActiveJob::TestCase
 
   test "enqueues on the default queue" do
     assert_enqueued_with(job: EndpointGenerationJob, queue: "default") do
-      EndpointGenerationJob.perform_later(REQUIREMENT)
+      EndpointGenerationJob.perform_later(@generation_request.id)
     end
   end
 
-  test "enqueues with the requirement argument" do
-    assert_enqueued_with(job: EndpointGenerationJob, args: [ REQUIREMENT ]) do
-      EndpointGenerationJob.perform_later(REQUIREMENT)
+  test "enqueues with the generation_request_id argument" do
+    assert_enqueued_with(job: EndpointGenerationJob, args: [ @generation_request.id ]) do
+      EndpointGenerationJob.perform_later(@generation_request.id)
     end
   end
 
@@ -44,15 +49,26 @@ class EndpointGenerationJobTest < ActiveJob::TestCase
   # Success path
   # ---------------------------------------------------------------------------
 
-  test "calls EndpointGeneration with the given requirement" do
+  test "calls EndpointGeneration with the requirement from the record" do
     received_requirement = nil
     endpoint = Endpoint.new(script: "Service::Events.all.count")
 
     with_fake_generation(->(req) { received_requirement = req; { ok: true, endpoint: endpoint } }) do
-      EndpointGenerationJob.perform_now(REQUIREMENT)
+      EndpointGenerationJob.perform_now(@generation_request.id)
     end
 
     assert_equal REQUIREMENT, received_requirement
+  end
+
+  test "updates GenerationRequest to succeeded on ok:true" do
+    endpoint = Endpoint.create!(script: "Service::Events.count")
+
+    with_fake_generation(->(_req) { { ok: true, endpoint: endpoint } }) do
+      EndpointGenerationJob.perform_now(@generation_request.id)
+    end
+
+    assert @generation_request.reload.succeeded?
+    assert_equal endpoint, @generation_request.reload.endpoint
   end
 
   test "logs success with the endpoint slug on ok:true" do
@@ -60,7 +76,7 @@ class EndpointGenerationJobTest < ActiveJob::TestCase
 
     with_fake_generation(->(_req) { { ok: true, endpoint: endpoint } }) do
       assert_logged(/Generated endpoint.*#{endpoint.slug}/i) do
-        EndpointGenerationJob.perform_now(REQUIREMENT)
+        EndpointGenerationJob.perform_now(@generation_request.id)
       end
     end
   end
@@ -69,12 +85,23 @@ class EndpointGenerationJobTest < ActiveJob::TestCase
   # Failure path (ok: false — context absorbed the IterationLimitError)
   # ---------------------------------------------------------------------------
 
+  test "updates GenerationRequest to failed on ok:false" do
+    error_msg = "Stopped after 5 iterations without success."
+
+    with_fake_generation(->(_req) { { ok: false, error: error_msg } }) do
+      EndpointGenerationJob.perform_now(@generation_request.id)
+    end
+
+    assert @generation_request.reload.failed?
+    assert_equal error_msg, @generation_request.reload.error_message
+  end
+
   test "logs failure message on ok:false" do
     error_msg = "Stopped after 5 iterations without success."
 
     with_fake_generation(->(_req) { { ok: false, error: error_msg } }) do
       assert_logged(/Failed to generate endpoint.*Stopped after 5 iterations/i) do
-        EndpointGenerationJob.perform_now(REQUIREMENT)
+        EndpointGenerationJob.perform_now(@generation_request.id)
       end
     end
   end
@@ -82,7 +109,7 @@ class EndpointGenerationJobTest < ActiveJob::TestCase
   test "does not raise when EndpointGeneration returns ok:false" do
     with_fake_generation(->(_req) { { ok: false, error: "generation failed" } }) do
       assert_nothing_raised do
-        EndpointGenerationJob.perform_now(REQUIREMENT)
+        EndpointGenerationJob.perform_now(@generation_request.id)
       end
     end
   end
@@ -94,7 +121,7 @@ class EndpointGenerationJobTest < ActiveJob::TestCase
   test "propagates unexpected infrastructure errors so the queue can retry" do
     with_fake_generation(->(_req) { raise RuntimeError, "connection refused" }) do
       assert_raises(RuntimeError) do
-        EndpointGenerationJob.perform_now(REQUIREMENT)
+        EndpointGenerationJob.perform_now(@generation_request.id)
       end
     end
   end
@@ -110,8 +137,6 @@ class EndpointGenerationJobTest < ActiveJob::TestCase
   def with_fake_generation(call_proc)
     original_new = EndpointGeneration.method(:new)
 
-    # Minitest 6 removed mock.rb; Job has no agent-style injection seam.
-    # Override .new at the singleton level so the Job's call site is unchanged.
     EndpointGeneration.define_singleton_method(:new) do |req|
       proc_to_call = call_proc
       Object.new.tap do |ctx|

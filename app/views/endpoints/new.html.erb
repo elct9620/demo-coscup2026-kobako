@@ -1,0 +1,29 @@
+<%= content_for :title, "Generate Endpoint" %>
+
+<div class="w-full max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold mb-6">Generate a Read-Only API Endpoint</h1>
+
+  <%= form_with model: @generation_request, url: endpoints_path, class: "space-y-4" do |f| %>
+    <% if @generation_request.errors.any? %>
+      <div class="rounded-md bg-red-50 border border-red-200 p-4">
+        <ul class="list-disc list-inside text-sm text-red-700">
+          <% @generation_request.errors.full_messages.each do |msg| %>
+            <li><%= msg %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div>
+      <%= f.label :requirement, "Describe your report in natural language",
+                  class: "block text-sm font-medium text-gray-700 mb-1" %>
+      <%= f.text_area :requirement,
+                      rows: 4,
+                      placeholder: "e.g. Count all page_view events from the past 7 days",
+                      class: "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" %>
+    </div>
+
+    <%= f.submit "Generate Endpoint",
+                 class: "inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer" %>
+  <% end %>
+</div>

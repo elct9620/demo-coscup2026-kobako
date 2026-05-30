@@ -1,0 +1,13 @@
+pending_request:
+  requirement: "count all events"
+  status: pending
+
+succeeded_request:
+  requirement: "count page_view events"
+  status: succeeded
+  endpoint: active_endpoint
+
+failed_request:
+  requirement: "impossible requirement"
+  status: failed
+  error_message: "Stopped after 5 iterations without success."
