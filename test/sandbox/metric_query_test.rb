@@ -108,6 +108,23 @@ class MetricQueryTest < ActiveSupport::TestCase
     assert_equal 10, @query.top_names.size
   end
 
+  # --- top_names limit clamp (DoS mitigation, untrusted scripts) ---
+
+  test "top_names(limit: -1) clamps to DEFAULT_LIMIT instead of unbounded LIMIT -1" do
+    (MetricQuery::DEFAULT_LIMIT + 5).times { |i| Event.create!(occurred_at: Time.current, name: "event_#{i}") }
+    assert_equal MetricQuery::DEFAULT_LIMIT, @query.top_names(limit: -1).size
+  end
+
+  test "top_names(limit: 0) clamps to DEFAULT_LIMIT" do
+    (MetricQuery::DEFAULT_LIMIT + 5).times { |i| Event.create!(occurred_at: Time.current, name: "event_#{i}") }
+    assert_equal MetricQuery::DEFAULT_LIMIT, @query.top_names(limit: 0).size
+  end
+
+  test "top_names oversized limit is clamped to MAX_LIMIT, never the whole table" do
+    (MetricQuery::MAX_LIMIT + 3).times { |i| Event.create!(occurred_at: Time.current, name: "event_#{i}") }
+    assert_equal MetricQuery::MAX_LIMIT, @query.top_names(limit: 999_999_999).size
+  end
+
   # --- total_count ---
 
   test "total_count returns an Integer" do

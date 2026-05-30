@@ -135,6 +135,36 @@ class EventQueryTest < ActiveSupport::TestCase
     assert_equal 2, rows.size
   end
 
+  # --- limit clamp (DoS mitigation, untrusted scripts) ---
+
+  test "limit(-1) clamps to DEFAULT_LIMIT instead of unbounded LIMIT -1" do
+    (EventQuery::DEFAULT_LIMIT + 5).times { Event.create!(occurred_at: Time.current, name: "ping") }
+
+    rows = @query.limit(-1).to_a
+    assert_equal EventQuery::DEFAULT_LIMIT, rows.size
+  end
+
+  test "limit(0) clamps to DEFAULT_LIMIT" do
+    (EventQuery::DEFAULT_LIMIT + 5).times { Event.create!(occurred_at: Time.current, name: "ping") }
+
+    rows = @query.limit(0).to_a
+    assert_equal EventQuery::DEFAULT_LIMIT, rows.size
+  end
+
+  test "an oversized limit is clamped to MAX_LIMIT, never the whole table" do
+    (EventQuery::MAX_LIMIT + 3).times { Event.create!(occurred_at: Time.current, name: "ping") }
+
+    rows = @query.limit(999_999_999).to_a
+    assert_equal EventQuery::MAX_LIMIT, rows.size
+  end
+
+  test "a limit between 1 and MAX_LIMIT is honored verbatim" do
+    5.times { Event.create!(occurred_at: Time.current, name: "ping") }
+
+    rows = @query.limit(3).to_a
+    assert_equal 3, rows.size
+  end
+
   # --- reading connection (SQL boundary) ---
 
   test "count executes via reading connection" do

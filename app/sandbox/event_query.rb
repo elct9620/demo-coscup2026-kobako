@@ -27,6 +27,12 @@ class EventQuery
   # Guards against unbounded queries from untrusted scripts (DoS mitigation).
   DEFAULT_LIMIT = 100
 
+  # Hard ceiling on rows returned by #to_a regardless of what an untrusted
+  # script passes to #limit.  Prevents DoS via large positive values (e.g.
+  # limit(999_999_999)) or SQLite's "no upper bound" semantics for LIMIT -1.
+  # A script can never pull more than MAX_LIMIT rows in a single #to_a call.
+  MAX_LIMIT = 1_000
+
   def initialize
     @scope_procs = []
     @limit_value = DEFAULT_LIMIT
@@ -50,9 +56,17 @@ class EventQuery
   end
 
   # Cap the number of rows returned by #to_a.
+  # The value is clamped to [1, MAX_LIMIT]: non-positive values (including
+  # SQLite's unbounded LIMIT -1 semantic) fall back to DEFAULT_LIMIT, and
+  # values exceeding MAX_LIMIT are silently reduced to MAX_LIMIT.
   # Returns self for chaining.
   def limit(n)
-    @limit_value = n.to_i
+    int = n.to_i
+    @limit_value = if int <= 0
+      DEFAULT_LIMIT
+    else
+      [ int, MAX_LIMIT ].min
+    end
     self
   end
 

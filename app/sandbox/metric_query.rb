@@ -24,6 +24,16 @@
 #   Service::Metrics.top_names(limit: 5)
 #   Service::Metrics.total_count(name: "page_view")
 class MetricQuery
+  # Default result count for #top_names when the caller omits +limit+.
+  DEFAULT_LIMIT = 10
+
+  # Hard ceiling on #top_names results regardless of the +limit+ an untrusted
+  # script passes.  Mirrors EventQuery::MAX_LIMIT: non-positive values
+  # (including ActiveRecord's unbounded LIMIT -1) fall back to DEFAULT_LIMIT,
+  # and values above MAX_LIMIT are reduced to MAX_LIMIT.  Guards against DoS
+  # via top_names(limit: -1) or top_names(limit: 999_999_999).
+  MAX_LIMIT = 1_000
+
   # Returns a Hash of { "YYYY-MM-DD" => Integer } covering every day from
   # +since+ through today, zero-padding days with no matching events.
   #
@@ -44,12 +54,15 @@ class MetricQuery
   # Returns an Array of [name, count] pairs sorted by count descending.
   # Each element is a two-element Array [String, Integer] — fully wire-representable.
   #
-  # +limit+ Integer, max results (default 10).
+  # +limit+ Integer, max results (default 10). Clamped to [1, MAX_LIMIT]:
+  #         non-positive values fall back to DEFAULT_LIMIT, larger values are
+  #         reduced to MAX_LIMIT, so an untrusted script cannot pull the whole
+  #         table via top_names(limit: -1) or a huge value.
   # +since+ optional Date or ISO-8601 String lower bound on occurred_at.
-  def top_names(limit: 10, since: nil)
+  def top_names(limit: DEFAULT_LIMIT, since: nil)
     since_date = since ? parse_date(since) : nil
     ApplicationRecord.connected_to(role: :reading) do
-      Metric.top_names(limit: limit, since: since_date)
+      Metric.top_names(limit: clamp_limit(limit), since: since_date)
     end
   end
 
@@ -62,6 +75,15 @@ class MetricQuery
   end
 
   private
+
+  # Clamp an untrusted limit into [1, MAX_LIMIT]; non-positive falls back to
+  # DEFAULT_LIMIT. See MAX_LIMIT for the DoS rationale.
+  def clamp_limit(value)
+    int = value.to_i
+    return DEFAULT_LIMIT if int <= 0
+
+    [ int, MAX_LIMIT ].min
+  end
 
   # Coerce caller-supplied value to a Date.
   # Accepts Date or ISO-8601 String ("YYYY-MM-DD").
