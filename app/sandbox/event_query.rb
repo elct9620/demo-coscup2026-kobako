@@ -40,10 +40,20 @@ class EventQuery
 
   # Filter events whose occurred_at falls within [from, to] (inclusive).
   # +from+ and +to+ accept Date, Time, or ISO-8601 String.
+  #
+  # Boundary semantics:
+  #   - +from+: when a pure date is given, the range starts at beginning_of_day
+  #             (i.e. 00:00:00) so the entire day is included from its start.
+  #   - +to+:   when a pure date is given, the range ends at end_of_day
+  #             (i.e. 23:59:59.999...) so the entire day is included up to its end.
+  #   - If an explicit time is already present (Time/DateTime, or a string
+  #     containing a time component like "2026-05-31T15:30:00"), it is used
+  #     as-is without forcing any boundary adjustment.
+  #
   # Returns self for chaining.
   def between(from, to)
-    from_time = parse_time(from)
-    to_time   = parse_time(to)
+    from_time = parse_from_time(from)
+    to_time   = parse_to_time(to)
     @scope_procs << ->(scope) { scope.where(occurred_at: from_time..to_time) }
     self
   end
@@ -104,15 +114,36 @@ class EventQuery
     }
   end
 
-  # Coerce the caller-supplied value to a Time the AR where clause accepts.
-  # Accepts Date, Time/DateTime, or a String parseable by Time.parse.
-  def parse_time(value)
+  # Coerce a range-start value to a Time.
+  # Pure dates (Date or date-only String) resolve to beginning_of_day so the
+  # entire start day is included.  Explicit times are used as-is.
+  def parse_from_time(value)
     case value
     when Time, DateTime then value
     when Date           then value.beginning_of_day
-    when String         then Time.parse(value)
+    when String         then date_only_string?(value) ? Date.parse(value).beginning_of_day : Time.parse(value)
     else
       raise ArgumentError, "EventQuery#between: unsupported time type #{value.class}"
     end
+  end
+
+  # Coerce a range-end value to a Time.
+  # Pure dates (Date or date-only String) resolve to end_of_day so the entire
+  # end day is included.  Explicit times are used as-is.
+  def parse_to_time(value)
+    case value
+    when Time, DateTime then value
+    when Date           then value.end_of_day
+    when String         then date_only_string?(value) ? Date.parse(value).end_of_day : Time.parse(value)
+    else
+      raise ArgumentError, "EventQuery#between: unsupported time type #{value.class}"
+    end
+  end
+
+  # Returns true when the string contains only a date (YYYY-MM-DD) with no
+  # time component.  Used to select between beginning_of_day / end_of_day
+  # boundary expansion vs. respecting an explicit time the caller provided.
+  def date_only_string?(str)
+    str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
   end
 end

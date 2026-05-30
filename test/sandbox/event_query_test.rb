@@ -76,6 +76,69 @@ class EventQueryTest < ActiveSupport::TestCase
     assert_equal 1, result
   end
 
+  # --- between: to-boundary correctness (regression for date truncation bug) ---
+  # When `to` is a pure date, the entire day must be included — not just 00:00:00.
+
+  test "between includes events later in the to day (Date object)" do
+    # An event at 15:30 on the to-day must be captured.
+    Event.create!(occurred_at: @today.end_of_day - 1.hour, name: "late_event")
+
+    result = @query.between(@today - 1, @today).count
+    assert_equal 1, result
+  end
+
+  test "between includes events later in the to day (date-only String)" do
+    to_str   = @today.iso8601                        # "YYYY-MM-DD"
+    from_str = (@today - 1).iso8601
+
+    Event.create!(occurred_at: @today.end_of_day - 1.hour, name: "late_event")
+
+    result = @query.between(from_str, to_str).count
+    assert_equal 1, result
+  end
+
+  test "between does not include events on the day after to (upper bound is not over-extended)" do
+    Event.create!(occurred_at: (@today + 1).beginning_of_day, name: "tomorrow")
+
+    result = @query.between(@today - 1, @today).count
+    assert_equal 0, result
+  end
+
+  test "between still includes events early in the from day (from boundary not broken)" do
+    Event.create!(occurred_at: (@today - 3).beginning_of_day, name: "from_start")
+
+    result = @query.between(@today - 3, @today).count
+    assert_equal 1, result
+  end
+
+  test "between includes events later in the to day when both inputs are date-only strings" do
+    # Full end-to-end: "YYYY-MM-DD" as both from and to, event at 23:59 on to-day.
+    to_str   = @today.iso8601
+    from_str = (@today - 7).iso8601
+
+    Event.create!(occurred_at: @today.end_of_day - 1.second, name: "almost_midnight")
+
+    assert_equal 1, @query.between(from_str, to_str).count
+  end
+
+  test "between respects explicit time in to string (no end_of_day forced)" do
+    # An explicit datetime string like "YYYY-MM-DDTHH:MM:SS" carries a time
+    # component and must be used as-is — no end_of_day expansion applied.
+    # We pick a cutoff 2 hours into the day and place one event before it
+    # and one event after it within the same day.
+    cutoff_time = @today.beginning_of_day + 2.hours
+    cutoff_str  = cutoff_time.iso8601   # e.g. "2026-05-30T02:00:00Z" — explicit time
+
+    before_cut = @today.beginning_of_day + 1.hour    # included
+    after_cut  = @today.beginning_of_day + 3.hours   # excluded
+
+    Event.create!(occurred_at: before_cut, name: "before")
+    Event.create!(occurred_at: after_cut,  name: "after")
+
+    result = @query.between(@today.iso8601, cutoff_str).count
+    assert_equal 1, result
+  end
+
   # --- to_a (terminal, Array of Hash) ---
 
   test "to_a returns an Array" do
