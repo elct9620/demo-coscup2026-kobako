@@ -92,15 +92,30 @@ GET /e/:slug?params...
 | **Solid Queue** | `solid_queue` | 框架支援 | `EndpointGenerationJob` 背景執行生成迴圈，不阻塞請求。 |
 | **SQLite** | `sqlite3` ~> 2.1 | Data | 主資料庫；額外配置唯讀 reading 連線（見下）。 |
 
-### LLM 設定（Rails.application.config）
+### LLM 設定（config_for）
 
-LLM 連線設定透過 `Rails.application.config.x`（預設指向 LMStudio）集中管理，並於 `config/initializers/ruby_llm.rb` 套用：
+LLM 連線設定走 Rails 原生的 `config_for`——環境相關的結構化設定置於 `config/llm.yml`（ERB 取 ENV、預設指向 LMStudio），於 `config/application.rb` 載入為 `config.llm`，再於 `config/initializers/ruby_llm.rb` 套用到 RubyLLM：
+
+```yaml
+# config/llm.yml
+shared:
+  api_base: "<%= ENV.fetch("LLM_API_BASE", "http://localhost:1234/v1") %>"
+  api_key:  "<%= ENV.fetch("LLM_API_KEY", "lm-studio") %>"
+  model:    "<%= ENV.fetch("LLM_MODEL", "<lmstudio-model-id>") %>"
+```
 
 ```ruby
-# config/application.rb（或 environments/*.rb）
-config.x.llm.api_base = ENV.fetch("LLM_API_BASE", "http://localhost:1234/v1")  # 預設 LMStudio
-config.x.llm.api_key  = ENV.fetch("LLM_API_KEY", "lm-studio")
-config.x.llm.model    = ENV.fetch("LLM_MODEL", "<lmstudio-model-id>")
+# config/application.rb
+config.llm = config_for(:llm)
+
+# config/initializers/ruby_llm.rb
+RubyLLM.configure do |config|
+  llm = Rails.application.config.llm
+  config.openai_api_base = llm.api_base
+  config.openai_api_key  = llm.api_key
+  config.openai_use_system_role = true
+  config.use_new_acts_as = true
+end
 ```
 
 ## 唯讀資料存取（兩層唯讀防禦）
