@@ -85,6 +85,34 @@ class EndpointGenerationTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------------------------------
+  # Failure path — ExtractionError (agent finishes but no success tool message)
+  # ---------------------------------------------------------------------------
+
+  test "returns ok:false when agent completes without a successful tool call" do
+    result = EndpointGeneration.new("vague requirement", agent: fake_no_tool_agent).call
+
+    assert_not result[:ok], "result must be ok:false when no success tool message exists"
+  end
+
+  test "does not create an Endpoint when no successful tool call is present" do
+    assert_no_difference "Endpoint.count" do
+      EndpointGeneration.new("vague requirement", agent: fake_no_tool_agent).call
+    end
+  end
+
+  test "failure result contains an error message when no success tool call is present" do
+    result = EndpointGeneration.new("vague requirement", agent: fake_no_tool_agent).call
+
+    assert result[:error].present?, "failure result must include an error message"
+  end
+
+  test "does not raise ExtractionError to the caller" do
+    assert_nothing_raised do
+      EndpointGeneration.new("vague requirement", agent: fake_no_tool_agent).call
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Interface contract
   # ---------------------------------------------------------------------------
 
@@ -145,6 +173,10 @@ class EndpointGenerationTest < ActiveSupport::TestCase
 
   def fake_success_agent_with_persisted_chat
     FakeSuccessAgentWithPersistedChat.new(VALIDATED_SCRIPT)
+  end
+
+  def fake_no_tool_agent
+    FakeNoToolAgent.new
   end
 
   # ---------------------------------------------------------------------------
@@ -236,6 +268,24 @@ class EndpointGenerationTest < ActiveSupport::TestCase
 
       # 3. Final assistant confirmation
       final = RubyLLM::Message.new(role: :assistant, content: "Done.")
+      @chat.add_message(final)
+      final
+    end
+  end
+
+  # Simulates an agent that completes normally (no exception) but whose chat
+  # contains only a plain assistant text message — no RunScriptTool call and
+  # therefore no "success: true" tool result.  EndpointGeneration should rescue
+  # ExtractionError and return { ok: false, error: ... }.
+  class FakeNoToolAgent
+    attr_reader :chat
+
+    def initialize
+      @chat = RubyLLM::Chat.new(model: "gpt-4o-mini")
+    end
+
+    def ask(_requirement)
+      final = RubyLLM::Message.new(role: :assistant, content: "I am not sure what to do.")
       @chat.add_message(final)
       final
     end

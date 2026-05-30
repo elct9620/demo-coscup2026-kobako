@@ -52,7 +52,9 @@ class EndpointGeneration
     script = extract_validated_script
     endpoint = Endpoint.create!(script: script)
     { ok: true, endpoint: endpoint }
-  rescue EndpointBuilderAgent::IterationLimitError => e
+  rescue EndpointBuilderAgent::IterationLimitError, ExtractionError => e
+    { ok: false, error: e.message }
+  rescue ActiveRecord::RecordInvalid => e
     { ok: false, error: e.message }
   end
 
