@@ -5,6 +5,10 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
+  # Dynamic endpoint replay service — consumer-facing read-only JSON API.
+  # Each slug maps to a persisted, LLM-validated mruby script replayed on demand.
+  get "e/:slug", to: "dynamic_endpoints#show", as: :dynamic_endpoint
+
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
