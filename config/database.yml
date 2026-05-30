@@ -10,15 +10,29 @@ default: &default
   timeout: 5000
 
 development:
-  <<: *default
-  database: storage/development.sqlite3
+  primary:
+    <<: *default
+    database: storage/development.sqlite3
+  reading:
+    <<: *default
+    # Open the same file in SQLite read-only URI mode.
+    # Writes are rejected at the file-open / driver layer (mode=ro),
+    # independent of any application-level check — the stronger of the
+    # two SQL-boundary guarantees (see docs/architecture.md).
+    database: "file:storage/development.sqlite3?mode=ro"
+    replica: true
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
 # Do not set this db to the same as development or production.
 test:
-  <<: *default
-  database: storage/test.sqlite3
+  primary:
+    <<: *default
+    database: storage/test.sqlite3
+  reading:
+    <<: *default
+    database: "file:storage/test.sqlite3?mode=ro"
+    replica: true
 
 # Store production database in the storage/ directory, which by default
 # is mounted as a persistent Docker volume in config/deploy.yml.
@@ -26,6 +40,10 @@ production:
   primary:
     <<: *default
     database: storage/production.sqlite3
+  reading:
+    <<: *default
+    database: "file:storage/production.sqlite3?mode=ro"
+    replica: true
   cache:
     <<: *default
     database: storage/production_cache.sqlite3
