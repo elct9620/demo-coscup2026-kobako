@@ -18,12 +18,10 @@
 #     → succeeded  (EndpointGeneration returned ok:true)
 #     → failed     (EndpointGeneration returned ok:false)
 #
-# #13 Streaming hook:
-#   After updating the GenerationRequest, this job (or EndpointGeneration) can
-#   broadcast Turbo Stream updates to the dom_id(generation_request) channel.
-#   The chat association on GenerationRequest is reserved for wiring in the
-#   persisted RubyLLM Chat that EndpointBuilderAgent uses — enabling per-round
-#   streaming of Message/ToolCall records.
+# #13 Streaming:
+#   A persisted Chat is created and linked to the GenerationRequest before
+#   generation starts.  Message after_create_commit broadcasts each agent turn
+#   to the operator's show page in real time via Turbo Stream.
 #
 # Dependency direction (docs/architecture.md):
 #   Job → Context (EndpointGeneration)
@@ -35,7 +33,14 @@ class EndpointGenerationJob < ApplicationJob
   # @param generation_request_id [Integer]  id of the GenerationRequest record
   def perform(generation_request_id)
     generation_request = GenerationRequest.find(generation_request_id)
-    result = EndpointGeneration.new(generation_request.requirement).call
+
+    # #13 — create and wire a persisted Chat so each Message/ToolCall round
+    # triggers after_create_commit broadcast callbacks on the Message model,
+    # enabling real-time streaming to the operator show page.
+    chat = Chat.create!
+    generation_request.update!(chat: chat)
+
+    result = EndpointGeneration.new(generation_request.requirement, chat: chat).call
 
     if result[:ok]
       generation_request.succeeded!(endpoint: result[:endpoint])

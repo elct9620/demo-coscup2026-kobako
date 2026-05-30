@@ -34,9 +34,13 @@ class EndpointGeneration
   # @param requirement [String]  natural-language description from the operator
   # @param agent [#ask, #chat]   agent instance; defaults to EndpointBuilderAgent.new
   #                               (injectable for testing — avoids real LMStudio calls)
-  def initialize(requirement, agent: EndpointBuilderAgent.new)
+  # @param chat [Chat, nil]      optional persisted Chat to bind to the agent;
+  #                               when provided the agent stores all turns in the
+  #                               DB so per-message Turbo Stream broadcasts fire (#13).
+  #                               When nil the agent uses an in-memory chat (test path).
+  def initialize(requirement, agent: nil, chat: nil)
     @requirement = requirement
-    @agent = agent
+    @agent = agent || EndpointBuilderAgent.new(chat: chat)
   end
 
   # Run the self-verification loop and return a structured result.
@@ -75,8 +79,13 @@ class EndpointGeneration
   #   3. Return the :script argument from that ToolCall.
   #
   # This is the canonical "last successful run" — the script the LLM converged on.
+  #
+  # Normalization note:
+  #   When the agent uses a persisted Chat, @agent.chat.messages returns AR
+  #   Message records.  We normalize each to RubyLLM::Message via #to_llm when
+  #   available so the extraction logic is uniform regardless of storage.
   def extract_validated_script
-    messages = @agent.chat.messages
+    messages = normalize_messages(@agent.chat.messages)
 
     # Find the last :tool message that carries a success result.
     success_tool_msg = messages.reverse.find { |m| tool_success_message?(m) }
@@ -85,18 +94,28 @@ class EndpointGeneration
     tool_call_id = success_tool_msg.tool_call_id
 
     # Find the assistant message that triggered this tool call.
+    # tool_calls hash keys may be symbols (in-memory RubyLLM::Chat) or
+    # strings (persisted Chat after to_llm normalization) — check both.
     assistant_msg = messages.find do |m|
       m.role == :assistant &&
         m.tool_calls.is_a?(Hash) &&
-        m.tool_calls.key?(tool_call_id.to_sym)
+        (m.tool_calls.key?(tool_call_id.to_sym) || m.tool_calls.key?(tool_call_id.to_s))
     end
 
     unless assistant_msg
       raise ExtractionError, "Could not find assistant message for tool_call_id=#{tool_call_id}"
     end
 
-    tool_call = assistant_msg.tool_calls[tool_call_id.to_sym]
-    tool_call.arguments[:script]
+    tool_call = assistant_msg.tool_calls[tool_call_id.to_sym] ||
+                assistant_msg.tool_calls[tool_call_id.to_s]
+    # arguments keys may be symbols (in-memory) or strings (persisted/deserialized)
+    tool_call.arguments[:script] || tool_call.arguments["script"]
+  end
+
+  # Normalize each message to a RubyLLM::Message so extraction logic is uniform
+  # for both in-memory chats (test path) and persisted AR chats (production path).
+  def normalize_messages(messages)
+    messages.map { |m| m.respond_to?(:to_llm) ? m.to_llm : m }
   end
 
   # Returns true when +message+ is a tool-result message whose content

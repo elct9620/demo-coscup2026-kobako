@@ -1,0 +1,20 @@
+<%#
+  Partial for a single LLM message in the generation log stream.
+  Rendered by Message#broadcast_message_to_generation_request (#13) via
+  Turbo Stream append to the #generation_log_<id> target on the show page.
+
+  message.role: :assistant (LLM turn) | :tool (sandbox trial-run result) | :user
+  message.content: text content of the message (plain string or JSON for tool calls)
+%>
+<% llm_message = message.to_llm %>
+<div class="rounded border border-gray-200 p-3 text-sm font-mono" data-role="<%= message.role %>">
+  <p class="text-xs text-gray-400 font-sans mb-1 capitalize"><%= message.role %></p>
+  <% if llm_message.tool_call? %>
+    <% message.tool_calls.each do |tc| %>
+      <p class="text-gray-700 break-all"><span class="font-semibold">Tool:</span> <%= tc.name %></p>
+      <pre class="mt-1 text-xs bg-gray-50 border border-gray-100 rounded p-2 overflow-x-auto whitespace-pre-wrap"><%= tc.arguments[:script] || tc.arguments.to_json %></pre>
+    <% end %>
+  <% else %>
+    <pre class="whitespace-pre-wrap break-all text-gray-800"><%= message.content.presence || "(empty)" %></pre>
+  <% end %>
+</div>

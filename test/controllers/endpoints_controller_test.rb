@@ -138,4 +138,24 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
     get endpoint_path(id: 9_999_999)
     assert_response :not_found
   end
+
+  # ---------------------------------------------------------------------------
+  # Turbo Stream subscription (#13)
+  # ---------------------------------------------------------------------------
+
+  test "GET /endpoints/:id includes turbo-cable-stream-source element for live updates" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+
+    get endpoint_path(gr)
+
+    assert_select "turbo-cable-stream-source", minimum: 1
+  end
+
+  test "GET /endpoints/:id includes the generation log target div" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+
+    get endpoint_path(gr)
+
+    assert_select "[id='generation_log_#{gr.id}']"
+  end
 end

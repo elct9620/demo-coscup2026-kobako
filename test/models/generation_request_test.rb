@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "turbo/broadcastable/test_helper"
 
 # Unit tests for GenerationRequest model.
 #
@@ -11,6 +12,7 @@ require "test_helper"
 # It is also the Turbo Stream target for #13 real-time streaming: dom_id(record)
 # produces a stable CSS selector that EndpointGenerationJob can broadcast to.
 class GenerationRequestTest < ActiveSupport::TestCase
+  include Turbo::Broadcastable::TestHelper
   # ---------------------------------------------------------------------------
   # Validations
   # ---------------------------------------------------------------------------
@@ -96,5 +98,36 @@ class GenerationRequestTest < ActiveSupport::TestCase
   test "dom_id is stable and usable as Turbo Stream target" do
     gr = GenerationRequest.create!(requirement: "count all events")
     assert_match(/generation_request_\d+/, ActionView::RecordIdentifier.dom_id(gr))
+  end
+
+  # ---------------------------------------------------------------------------
+  # Turbo Stream broadcast — status updates (#13)
+  # ---------------------------------------------------------------------------
+  #
+  # After succeeded! or failed! the status frame on the show page must refresh.
+  # We use after_update_commit to broadcast a replace of the status partial.
+  #
+  # Same transactional-test caveat as MessageTest: we invoke the private
+  # broadcast method directly to bypass the rolled-back test transaction.
+  # ---------------------------------------------------------------------------
+
+  test "broadcast_status_to_self sends a turbo stream replace to the generation request" do
+    gr = GenerationRequest.create!(requirement: "count events")
+
+    assert_turbo_stream_broadcasts gr do
+      gr.send(:broadcast_status_to_self)
+    end
+  end
+
+  test "broadcast_status_to_self swallows Action Cable errors" do
+    gr = GenerationRequest.create!(requirement: "count events")
+
+    def gr.broadcast_replace_to(*_args, **_kwargs)
+      raise "Cable down"
+    end
+
+    assert_nothing_raised do
+      gr.send(:broadcast_status_to_self)
+    end
   end
 end

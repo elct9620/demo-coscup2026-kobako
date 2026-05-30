@@ -1,5 +1,12 @@
 <%= content_for :title, "Generation Status" %>
 
+<%#
+  #13 Turbo Stream subscription — subscribes this page to live updates from
+  the generation loop.  Broadcasts targeting this GenerationRequest will be
+  delivered via Action Cable to all subscribers on this stream.
+%>
+<%= turbo_stream_from @generation_request %>
+
 <div class="w-full max-w-2xl mx-auto space-y-6">
   <h1 class="text-2xl font-bold">Generation Status</h1>
 
@@ -9,16 +16,26 @@
   </div>
 
   <%#
-    Turbo Frame "status" — #13 streaming anchor.
-    dom_id(@generation_request) produces e.g. "generation_request_1".
-    EndpointGenerationJob can broadcast Turbo Stream replace/update actions
-    targeting this frame id to push live status updates.
+    Turbo Frame "status" — replaced by GenerationRequest#broadcast_status_to_self
+    after succeeded! / failed! to show the final outcome without a page reload.
   %>
   <%= turbo_frame_tag dom_id(@generation_request) do %>
     <div id="<%= dom_id(@generation_request) %>-status">
       <%= render "status", generation_request: @generation_request %>
     </div>
   <% end %>
+
+  <%#
+    Generation log — each Message (LLM turn / tool call result) is appended here
+    in real time by Message#broadcast_message_to_generation_request as the agent
+    runs.  Target id matches the target: kwarg in the broadcast callback.
+  %>
+  <div class="space-y-2">
+    <h2 class="text-sm font-semibold text-gray-600">Generation Log</h2>
+    <div id="generation_log_<%= @generation_request.id %>" class="space-y-2">
+      <%# Messages are appended here live via Turbo Stream broadcasts (#13) %>
+    </div>
+  </div>
 
   <p class="text-sm text-gray-500">
     <%= link_to "← Generate another endpoint", new_endpoint_path, class: "text-indigo-600 hover:text-indigo-800" %>

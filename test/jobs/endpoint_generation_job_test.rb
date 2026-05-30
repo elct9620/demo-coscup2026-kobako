@@ -126,6 +126,40 @@ class EndpointGenerationJobTest < ActiveJob::TestCase
     end
   end
 
+  # ---------------------------------------------------------------------------
+  # Chat creation and wiring (#13)
+  # ---------------------------------------------------------------------------
+
+  test "creates a Chat record before running generation" do
+    assert_difference "Chat.count", 1 do
+      with_fake_generation(->(_req) { { ok: false, error: "skipped" } }) do
+        EndpointGenerationJob.perform_now(@generation_request.id)
+      end
+    end
+  end
+
+  test "associates the new Chat with the GenerationRequest before generation" do
+    received_chat = nil
+
+    with_fake_generation_with_chat(->(req, chat) { received_chat = chat; { ok: false, error: "skipped" } }) do
+      EndpointGenerationJob.perform_now(@generation_request.id)
+    end
+
+    assert_not_nil received_chat, "EndpointGeneration must receive a Chat object"
+    assert_instance_of Chat, received_chat
+    assert received_chat.persisted?, "Chat must be persisted before being passed to EndpointGeneration"
+    assert_equal received_chat, @generation_request.reload.chat
+  end
+
+  test "GenerationRequest.chat is set even when generation fails" do
+    with_fake_generation(->(_req) { { ok: false, error: "cannot generate" } }) do
+      EndpointGenerationJob.perform_now(@generation_request.id)
+    end
+
+    assert_not_nil @generation_request.reload.chat,
+                   "chat must be set even when generation fails (enables stream to show partial history)"
+  end
+
   private
 
   # Temporarily replaces EndpointGeneration.new so that it returns a fake
@@ -134,13 +168,35 @@ class EndpointGenerationJobTest < ActiveJob::TestCase
   #
   # @param call_proc [Proc]  called with the requirement; return value becomes
   #                          the result of context#call.  May raise freely.
+  #
+  # Updated for #13: EndpointGeneration.new now accepts (req, chat: chat).
+  # The fake accepts any positional + keyword args to stay compatible.
   def with_fake_generation(call_proc)
     original_new = EndpointGeneration.method(:new)
 
-    EndpointGeneration.define_singleton_method(:new) do |req|
+    EndpointGeneration.define_singleton_method(:new) do |req, **_kwargs|
       proc_to_call = call_proc
       Object.new.tap do |ctx|
         ctx.define_singleton_method(:call) { proc_to_call.call(req) }
+      end
+    end
+
+    yield
+  ensure
+    EndpointGeneration.singleton_class.undef_method(:new)
+    EndpointGeneration.define_singleton_method(:new) do |*args, **kwargs, &block|
+      original_new.call(*args, **kwargs, &block)
+    end
+  end
+
+  # Like with_fake_generation but exposes the chat kwarg to the proc.
+  def with_fake_generation_with_chat(call_proc)
+    original_new = EndpointGeneration.method(:new)
+
+    EndpointGeneration.define_singleton_method(:new) do |req, chat: nil, **_kwargs|
+      proc_to_call = call_proc
+      Object.new.tap do |ctx|
+        ctx.define_singleton_method(:call) { proc_to_call.call(req, chat) }
       end
     end
 

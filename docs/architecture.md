@@ -168,5 +168,11 @@ production:
 - **Canonical example**：`app/agents/endpoint_builder_agent.rb`、`app/tools/run_script_tool.rb`。
 - **Forces this resolves**：Rule complexity（自我驗證編排）；避免重造 LLM orchestration。
 - **Revisit if**：需要多代理協作，或迴圈需跨多個工具。
-```
+
+### 串流觀察層（Stream-as-observation-layer）
+- **When to apply**：背景 Job 驅動的流程需要即時 UI 回饋，且串流失敗絕不可影響流程本身的結果。
+- **Shape**：`after_*_commit` callback 在 AR model 上（`Message`、`GenerationRequest`），broadcast 包在 `rescue StandardError` 內並記 log；`turbo_stream_from` 在 view 訂閱；broadcast 在 commit 之後觸發，與 Job 的 critical path 完全隔離。
+- **Canonical example**：`app/models/message.rb`（per-round append）、`app/models/generation_request.rb`（final status replace）、`app/views/endpoints/show.html.erb`（turbo_stream_from）。
+- **Forces this resolves**：Blast radius（SPEC error scenario：串流中斷不影響端點產出）。
+- **Revisit if**：需要廣播非持久化的中間事件（如 streaming tokens），或需要多租戶串流隔離。
 

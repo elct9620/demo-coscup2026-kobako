@@ -28,6 +28,14 @@ class GenerationRequest < ApplicationRecord
   validates :requirement, presence: true
   validates :status, presence: true
 
+  # #13 — broadcast status frame replacement after each update so the operator
+  # sees the final succeeded / failed state in real time.
+  #
+  # Isolation guarantee: the broadcast is wrapped in rescue.  Any Action Cable
+  # error is logged and swallowed — it cannot roll back the committed row or
+  # propagate to EndpointGenerationJob.
+  after_update_commit :broadcast_status_to_self
+
   # Transition to succeeded and persist the associated endpoint in one call.
   #
   # @param endpoint [Endpoint]  the validated, persisted endpoint record
@@ -40,5 +48,20 @@ class GenerationRequest < ApplicationRecord
   # @param error_message [String]
   def failed!(error_message:)
     update!(status: :failed, error_message: error_message)
+  end
+
+  private
+
+  # Broadcast a replace of the status Turbo Frame so the show page updates
+  # without a page reload.  Targets the dom_id(self) frame wired in show.html.erb.
+  def broadcast_status_to_self
+    broadcast_replace_to(
+      self,
+      target: ActionView::RecordIdentifier.dom_id(self),
+      partial: "endpoints/status",
+      locals: { generation_request: self }
+    )
+  rescue StandardError => e
+    Rails.logger.warn "[GenerationRequest#broadcast_status] Turbo Stream broadcast failed (generation unaffected): #{e.message}"
   end
 end

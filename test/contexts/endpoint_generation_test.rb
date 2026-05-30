@@ -103,6 +103,25 @@ class EndpointGenerationTest < ActiveSupport::TestCase
     assert_not result[:ok]
   end
 
+  # ---------------------------------------------------------------------------
+  # Persisted Chat path (#13) — normalize_messages
+  # ---------------------------------------------------------------------------
+  #
+  # When EndpointGeneration is given a real persisted Chat (AR record), the
+  # agent stores messages in the DB.  extract_validated_script must normalize
+  # AR Message records to RubyLLM::Message objects before walking the history.
+  #
+  # We verify by passing a FakeSuccessAgent backed by a persisted Chat that has
+  # the correct message rows, and confirm the script is correctly extracted.
+  # ---------------------------------------------------------------------------
+
+  test "extracts validated script from persisted AR chat messages" do
+    result = EndpointGeneration.new("count all events", agent: fake_success_agent_with_persisted_chat).call
+
+    assert result[:ok], "should succeed with persisted chat messages: #{result[:error]}"
+    assert_equal VALIDATED_SCRIPT, result[:endpoint].script
+  end
+
   private
 
   # Returns a fake agent whose #ask method injects a synthetic, successful
@@ -122,6 +141,10 @@ class EndpointGenerationTest < ActiveSupport::TestCase
 
   def fake_failure_agent
     FakeFailureAgent.new
+  end
+
+  def fake_success_agent_with_persisted_chat
+    FakeSuccessAgentWithPersistedChat.new(VALIDATED_SCRIPT)
   end
 
   # ---------------------------------------------------------------------------
@@ -167,6 +190,52 @@ class EndpointGenerationTest < ActiveSupport::TestCase
 
       # 3. Final assistant confirmation
       final = RubyLLM::Message.new(role: :assistant, content: "Script validated successfully.")
+      @chat.add_message(final)
+      final
+    end
+  end
+
+  # Like FakeSuccessAgent but uses a *persisted* AR Chat record so that
+  # EndpointGeneration exercises the normalize_messages path (#13).
+  #
+  # Reuses Chat#add_message (the AR-backed persistence method) to store the
+  # same three-message sequence as FakeSuccessAgent.
+  class FakeSuccessAgentWithPersistedChat
+    attr_reader :chat
+
+    def initialize(validated_script)
+      @validated_script = validated_script
+      @chat = Chat.create!
+    end
+
+    def ask(_requirement)
+      tool_call_id = "call_persist_#{SecureRandom.hex(4)}"
+      tool_call = RubyLLM::ToolCall.new(
+        id: tool_call_id,
+        name: "run_script_tool",
+        arguments: { script: @validated_script }
+      )
+
+      # 1. Assistant message with tool call
+      @chat.add_message(
+        RubyLLM::Message.new(
+          role: :assistant,
+          content: nil,
+          tool_calls: { tool_call_id.to_sym => tool_call }
+        )
+      )
+
+      # 2. Tool result (success: true)
+      @chat.add_message(
+        RubyLLM::Message.new(
+          role: :tool,
+          content: { success: true, result: 42 }.to_s,
+          tool_call_id: tool_call_id
+        )
+      )
+
+      # 3. Final assistant confirmation
+      final = RubyLLM::Message.new(role: :assistant, content: "Done.")
       @chat.add_message(final)
       final
     end
