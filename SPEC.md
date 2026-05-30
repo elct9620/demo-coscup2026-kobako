@@ -1,5 +1,7 @@
 # 動態唯讀 API 端點生成器
 
+本規格描述目標狀態與邊界，維持實作中立。技術棧、目錄對應與實作模式見 [docs/architecture.md](docs/architecture.md)。
+
 ## Intent
 
 ### Purpose
