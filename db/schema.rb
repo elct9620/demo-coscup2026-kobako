@@ -10,12 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_30_125242) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_30_162719) do
   create_table "chats", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "model_id"
     t.datetime "updated_at", null: false
     t.index ["model_id"], name: "index_chats_on_model_id"
+  end
+
+  create_table "events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "occurred_at", null: false
+    t.json "properties", default: {}
+    t.datetime "updated_at", null: false
+    t.index ["name", "occurred_at"], name: "index_events_on_name_and_occurred_at"
+    t.index ["name"], name: "index_events_on_name"
+    t.index ["occurred_at"], name: "index_events_on_occurred_at"
   end
 
   create_table "messages", force: :cascade do |t|

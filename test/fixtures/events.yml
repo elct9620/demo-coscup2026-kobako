@@ -1,0 +1,20 @@
+recent_page_view:
+  occurred_at: <%= 1.day.ago.iso8601 %>
+  name: page_view
+  properties:
+    path: /home
+    referrer: https://google.com
+
+old_page_view:
+  occurred_at: <%= 30.days.ago.iso8601 %>
+  name: page_view
+  properties:
+    path: /about
+    referrer: ""
+
+button_click:
+  occurred_at: <%= 2.days.ago.iso8601 %>
+  name: button_click
+  properties:
+    button_id: cta_signup
+    path: /home
