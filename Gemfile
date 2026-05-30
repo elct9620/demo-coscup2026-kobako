@@ -64,3 +64,7 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
 end
+
+gem "kobako", "~> 0.6.1"
+
+gem "ruby_llm", "~> 1.15"

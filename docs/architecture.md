@@ -83,8 +83,8 @@ GET /e/:slug?params...
 
 | 技術 | gem / 版本 | 所在層 | 用法重點 |
 |------|-----------|--------|----------|
-| **Kobako** | `kobako` ~> 0.4 _(待 `bundle add` 回填)_ | sandbox / Interaction | mruby-in-WASM 沙盒。`Kobako::Sandbox.new(timeout:, memory_limit:)`；`#define(:NS).bind(:Member, obj)` 綁定唯讀 Service；`#run(target, *args, **kwargs)` / `#eval`；非 wire 型別自動轉 `Handle` 代理供鏈式呼叫；MessagePack 為唯一 wire codec；guest 無 require/網路/檔案/ENV，唯讀為設計保證。每次調用全新狀態。 |
-| **RubyLLM** | `ruby_llm` ~> 1.15 _(待 `bundle add` 回填)_ | agents / tools | `EndpointBuilderAgent < RubyLLM::Agent`（macros：`model`、`instructions`、`tools`）；`RunScriptTool < RubyLLM::Tool`（`desc` + `execute`）；指令置於 `app/prompts/`；串流委派 `complete`/`each`。 |
+| **Kobako** | `kobako` ~> 0.6.1 | sandbox / Interaction | mruby-in-WASM 沙盒。`Kobako::Sandbox.new(timeout:, memory_limit:)`；`#define(:NS).bind(:Member, obj)` 綁定唯讀 Service；`#run(target, *args, **kwargs)` / `#eval`；非 wire 型別自動轉 `Handle` 代理供鏈式呼叫（限單次調用）；MessagePack 為唯一 wire codec；guest 與宿主隔離（無 require/網路/檔案/ENV）為 Kobako 設計保證，唯讀則由兩層防禦達成（見下）；每次調用以全新 mrb_state 執行、per-invocation 狀態重置，Service 綁定於首次調用後封存。 |
+| **RubyLLM** | `ruby_llm` ~> 1.15 | agents / tools | `EndpointBuilderAgent < RubyLLM::Agent`（macros：`model`、`instructions`、`tools`）；`RunScriptTool < RubyLLM::Tool`（`desc` + `execute`）；指令置於 `app/prompts/`；串流委派 `complete`/`each`。 |
 | **LMStudio** | （外部，OpenAI 相容） | — | 預設 `http://localhost:1234/v1`；`config.openai_use_system_role = true`；Agent 用 `model "<id>", provider: :openai, assume_model_exists: true`。 |
 | **Hotwire** | `turbo-rails`、`stimulus-rails` | 框架支援 | 生成 UI 與表單互動。 |
 | **TailwindCSS** | v4 | 框架支援 | 視覺樣式。 |
