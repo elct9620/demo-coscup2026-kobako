@@ -1,0 +1,4 @@
+active_endpoint:
+  slug: abc123de
+  script: "events.all"
+  status: active
