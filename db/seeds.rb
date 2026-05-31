@@ -70,15 +70,23 @@ puts "  form_submit:  #{Event.by_name('form_submit').count}"
 # So the Endpoints list isn't empty on a fresh setup: the audience sees a few
 # working endpoints before the operator generates one live. These scripts are
 # real, sandbox-verified read-only mruby (the same shape the agent generates).
-# The "2026-05-01" window lines up with the 30 days of events seeded above.
+# Date windows are baked from the current date at seed time, so re-seeding
+# right before the demo always lines up with the freshly-seeded 30 days above.
+today_iso   = Date.current.iso8601
+since_iso   = 30.days.ago.to_date.iso8601
+# Narrow recent window + high limit so to_a returns the whole window (well
+# under MAX_LIMIT) and the in-script sort yields the *true* newest events —
+# Service::Events has no ordering, and to_a's DEFAULT_LIMIT of 100 would
+# otherwise hand back the oldest rows of a wide window.
+recent_iso  = 3.days.ago.to_date.iso8601
+
 demo_endpoints = [
   {
     slug: "page-views-last-7-days",
     requirement: "Count all page_view events from the past 7 days",
     script: <<~RUBY.strip
-      counts = Service::Metrics.daily_counts(since: "2026-05-01", name: "page_view")
-      sorted_dates = counts.keys.sort
-      recent_dates = sorted_dates.last(7)
+      counts = Service::Metrics.daily_counts(since: "#{since_iso}", name: "page_view")
+      recent_dates = counts.keys.sort.last(7)
       sum = 0
       recent_dates.each { |date| sum += counts[date] }
       sum
@@ -88,19 +96,17 @@ demo_endpoints = [
     slug: "recent-events",
     requirement: "List the 5 most recent events with their names and timestamps",
     script: <<~RUBY.strip
-      events = Service::Events.limit(100).to_a.sort_by { |e| e["occurred_at"] }.reverse.first(5).map do |e|
-        { "name" => e["name"], "occurred_at" => e["occurred_at"] }
-      end
-      events
+      events = Service::Events.between("#{recent_iso}", "#{today_iso}").limit(1000).to_a
+      recent = events.sort_by { |e| e["occurred_at"] }.reverse.first(5)
+      recent.map { |e| { "name" => e["name"], "occurred_at" => e["occurred_at"] } }
     RUBY
   },
   {
     slug: "avg-events-per-day",
     requirement: "Average number of events per day over the last 7 days",
     script: <<~RUBY.strip
-      counts = Service::Metrics.daily_counts(since: "2026-05-01")
-      sorted_days = counts.keys.sort
-      last_7_days = sorted_days.last(7)
+      counts = Service::Metrics.daily_counts(since: "#{since_iso}")
+      last_7_days = counts.keys.sort.last(7)
       if last_7_days.empty?
         0.0
       else
