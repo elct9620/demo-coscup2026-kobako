@@ -70,3 +70,10 @@ gem "kobako", "~> 0.6.1"
 gem "ruby_llm", "~> 1.15"
 
 gem "tailwindcss-rails", "~> 4.4"
+
+# Render the generation log's agent turns through one Markdown pipeline so
+# prose, tool calls, and sandbox results share a single consistent look;
+# Rouge syntax-highlights the fenced code blocks.  Both pure-Ruby-friendly and
+# Node-free, in keeping with the importmap/Propshaft asset posture.
+gem "redcarpet", "~> 3.6"
+gem "rouge", "~> 4.5"
