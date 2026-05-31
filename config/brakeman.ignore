@@ -1,0 +1,29 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Dangerous Eval",
+      "warning_code": 13,
+      "fingerprint": "71a46d470856f456749500334700834a092416d9efb744e80c81699b6b903ce7",
+      "check_name": "Evaluation",
+      "message": "Dynamic code evaluation",
+      "file": "app/sandbox/read_only_sandbox.rb",
+      "line": 92,
+      "link": "https://brakemanscanner.org/docs/warning_types/dangerous_eval/",
+      "code": "build_sandbox(params).eval(script)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "ReadOnlySandbox",
+        "method": "call"
+      },
+      "user_input": null,
+      "confidence": "Weak",
+      "cwe_id": [
+        913,
+        95
+      ],
+      "note": "Not host eval. #eval here is Kobako's WASM mruby sandbox guest evaluation, not Ruby's Kernel#eval — the script never runs in the host process. Untrusted LLM-generated scripts are the deliberate input, contained by the two-layer read-only defense (capability boundary: only read-only Service roles bound; SQL boundary: reading connection opened mode=ro) plus per-call timeout and memory limits. Running guest scripts is the entire purpose of this method; Brakeman cannot see the sandbox boundary. Reviewed and accepted."
+    }
+  ],
+  "brakeman_version": "8.0.4"
+}
