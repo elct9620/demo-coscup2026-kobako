@@ -12,10 +12,16 @@
 
     <%# Operator control panel — demo tooling. "Inject events" writes a fresh
         batch through ActiveRecord (not the sandbox) so an already-live endpoint
-        visibly changes on its next request. %>
+        visibly changes on its next request. "Reset" clears the whole board back
+        to the fresh-demo state (guarded by a confirm). %>
     <div class="flex flex-wrap gap-3">
       <%= button_to "灌入一批事件", demo_events_path, method: :post,
                     class: "inline-flex items-center border border-edge-strong bg-surface-raised px-4 py-2 text-sm font-medium text-content-strong transition-colors hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary" %>
+      <% if @endpoints.any? %>
+        <%= button_to "清空全部端點", reset_endpoints_path, method: :delete,
+                      form: { data: { turbo_confirm: "確定清空所有端點？此動作無法復原（事件資料保留）。" } },
+                      class: "inline-flex items-center border border-danger/45 bg-surface-raised px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger" %>
+      <% end %>
     </div>
   </header>
 

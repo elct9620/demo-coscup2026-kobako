@@ -54,6 +54,64 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
   end
 
   # ---------------------------------------------------------------------------
+  # DELETE /endpoints/reset — clear the board back to the fresh-demo state
+  # ---------------------------------------------------------------------------
+
+  # Build a realistic generation footprint: an endpoint with its originating
+  # GenerationRequest, the Chat that produced it, and a message + tool call —
+  # mirroring what EndpointGeneration leaves behind so the cascade is exercised.
+  def seed_generation_footprint
+    chat = Chat.create!
+    msg  = Message.new(role: :assistant, content: nil, chat: chat)
+    msg.save!(validate: false)
+    msg.tool_calls.create!(tool_call_id: "call_reset", name: "submit_endpoint",
+                           arguments: { "script" => "events.count" })
+    endpoint = Endpoint.create!(script: "events.count")
+    GenerationRequest.create!(requirement: "count events", chat: chat).succeeded!(endpoint: endpoint)
+  end
+
+  test "DELETE /endpoints/reset removes every endpoint" do
+    seed_generation_footprint
+    assert_operator Endpoint.count, :>, 0
+
+    delete reset_endpoints_path
+
+    assert_equal 0, Endpoint.count
+  end
+
+  test "DELETE /endpoints/reset removes generation requests, chats and messages" do
+    seed_generation_footprint
+
+    delete reset_endpoints_path
+
+    assert_equal 0, GenerationRequest.count
+    assert_equal 0, Chat.count
+    assert_equal 0, Message.count
+  end
+
+  test "DELETE /endpoints/reset preserves the event data" do
+    seed_generation_footprint
+    events_before = Event.count
+    assert_operator events_before, :>, 0
+
+    delete reset_endpoints_path
+
+    assert_equal events_before, Event.count
+  end
+
+  test "DELETE /endpoints/reset redirects to the index with a notice" do
+    delete reset_endpoints_path
+
+    assert_redirected_to endpoints_path
+    assert flash[:notice].present?
+  end
+
+  test "GET /endpoints offers the reset control" do
+    get endpoints_path
+    assert_select "form[action=?][method=post]", reset_endpoints_path
+  end
+
+  # ---------------------------------------------------------------------------
   # GET /endpoints/new
   # ---------------------------------------------------------------------------
 

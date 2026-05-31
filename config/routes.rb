@@ -13,8 +13,13 @@ Rails.application.routes.draw do
   # Operator-facing generation UI (Hotwire).
   # index lists the live endpoints (the demo's "these are on the air now" view);
   # new/create drive generation; show tracks one generation attempt.
-  # No edit or delete: endpoints are immutable once validated and live.
-  resources :endpoints, only: %i[index new create show]
+  # Endpoints are immutable once validated (no edit/version); reset clears the
+  # whole board back to the fresh-demo state as an operator maintenance action.
+  # reset is a collection route (DELETE /endpoints/reset) so it never collides
+  # with the member id space, which the show action borrows for GenerationRequest.
+  resources :endpoints, only: %i[index new create show] do
+    delete :reset, on: :collection
+  end
 
   # Operator demo tooling: inject a fresh batch of analytics events so an
   # already-live endpoint visibly changes on its next request. Writes through

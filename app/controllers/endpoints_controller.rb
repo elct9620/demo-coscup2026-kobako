@@ -46,6 +46,24 @@ class EndpointsController < ApplicationController
     head :not_found
   end
 
+  # Clear the board back to the fresh-demo state so the operator can re-run the
+  # demo from scratch. Removes endpoints and their entire generation footprint
+  # (requests, chats, messages, tool calls); the seeded event data is left
+  # intact so generated scripts still have something to query.
+  #
+  # Order matters under the foreign keys: GenerationRequest references both
+  # Endpoint and Chat, so it goes first; Chat#destroy cascades messages and
+  # tool calls via acts_as_chat. Wrapped in a transaction so a mid-delete
+  # failure leaves the board untouched rather than half-cleared.
+  def reset
+    ActiveRecord::Base.transaction do
+      GenerationRequest.destroy_all
+      Endpoint.destroy_all
+      Chat.destroy_all
+    end
+    redirect_to endpoints_path, notice: "已清空所有端點，回到初始狀態"
+  end
+
   private
 
   def generation_request_params
