@@ -35,6 +35,7 @@
     </div>
 
     <%= f.submit "Generate endpoint",
-                 class: "inline-flex cursor-pointer items-center bg-primary px-5 py-3 text-sm font-semibold text-content-inverse transition-colors hover:bg-primary-hover active:bg-primary-active focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary" %>
+                 data: { turbo_submits_with: "Generating…" },
+                 class: "inline-flex cursor-pointer items-center bg-primary px-5 py-3 text-sm font-semibold text-content-inverse transition-colors hover:bg-primary-hover active:bg-primary-active focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-70" %>
   <% end %>
 </div>
