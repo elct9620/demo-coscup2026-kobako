@@ -30,16 +30,34 @@
                       rows: 4,
                       data: { examples_target: "field" },
                       class: "block w-full border border-edge-default bg-surface-base px-3 py-2.5 text-content-default placeholder:text-content-muted focus:outline-2 focus:outline-secondary focus:outline-offset-2" %>
-      <% example = "Count all page_view events from the past 7 days" %>
-      <p class="mt-2 font-mono text-xs text-content-muted">
-        e.g.
-        <button type="button"
-                data-action="examples#fill"
-                data-examples-text-param="<%= example %>"
-                class="cursor-pointer text-primary underline decoration-edge-strong underline-offset-2 hover:decoration-primary">
-          <%= example %>
-        </button>
-      </p>
+      <%
+        # One-click prompts spanning the sandbox's capabilities, so the demo can
+        # show the range live: query params (Service::Params), aggregations
+        # (Service::Metrics), detail listings (Service::Events), and relative
+        # time (Utils::Time). The first two are param-driven — change the URL,
+        # change the result — which is the strongest thing to show on stage.
+        examples = [
+          "Count events for the `event` query param over the last `days` days",
+          "Top 5 event names by count, limited by the `limit` query param",
+          "List the 5 most recent events with their name and timestamp",
+          "Daily event counts for the last 7 days"
+        ]
+      %>
+      <div class="mt-3">
+        <p class="font-mono text-xs text-content-muted">Try one:</p>
+        <ul class="mt-1.5 space-y-1">
+          <% examples.each do |example| %>
+            <li>
+              <button type="button"
+                      data-action="examples#fill"
+                      data-examples-text-param="<%= example %>"
+                      class="cursor-pointer text-left font-mono text-xs text-primary underline decoration-edge-strong underline-offset-2 hover:decoration-primary">
+                <%= example %>
+              </button>
+            </li>
+          <% end %>
+        </ul>
+      </div>
     </div>
 
     <%= f.submit "Generate endpoint",

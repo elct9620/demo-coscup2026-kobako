@@ -63,6 +63,15 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
     assert_select "textarea[name='generation_request[requirement]']"
   end
 
+  # The form offers several one-click example prompts (not just one) so the
+  # operator can demo the range of capabilities on stage — Params-driven
+  # queries, aggregations, detail listings, relative time. Each is a button
+  # wired to the examples Stimulus controller's fill action.
+  test "GET /endpoints/new offers multiple one-click example prompts" do
+    get new_endpoint_path
+    assert_select "button[data-action='examples#fill']", minimum: 3
+  end
+
   # ---------------------------------------------------------------------------
   # POST /endpoints (create)
   # ---------------------------------------------------------------------------
