@@ -32,10 +32,33 @@ class EndpointBuilderAgentTest < ActiveSupport::TestCase
     assert EndpointBuilderAgent::MAX_ITERATIONS.positive?
   end
 
-  test "tools list includes RunScriptTool" do
+  test "class-level tools declare the stateless InspectQueryTool" do
     tools = EndpointBuilderAgent.tools
-    assert_includes tools, RunScriptTool,
-                    "tools macro should include RunScriptTool"
+    assert_includes tools, InspectQueryTool,
+                    "tools macro should declare InspectQueryTool"
+  end
+
+  test "binds both inspect_query and submit_endpoint on the chat" do
+    agent = build_agent
+    bound = agent.chat.tools.keys
+
+    assert_includes bound, :inspect_query, "inspect_query must be bound"
+    assert_includes bound, :submit_endpoint, "submit_endpoint must be bound"
+  end
+
+  test "exposes the submit_endpoint tool instance via #submit_tool" do
+    agent = build_agent
+
+    assert_instance_of SubmitEndpointTool, agent.submit_tool
+    assert_nil agent.submit_tool.captured_script,
+               "captured_script starts nil until a submission succeeds"
+  end
+
+  test "the bound submit_endpoint is the same tracked instance #submit_tool exposes" do
+    agent = build_agent
+
+    assert_same agent.submit_tool, agent.chat.tools[:submit_endpoint],
+                "EndpointGeneration must read the same instance the LLM submits through"
   end
 
   test "instructions point to the conventional prompt file" do
