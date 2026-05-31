@@ -2,6 +2,13 @@
 @import "./tokens.css";
 
 /*
+ * Don't scan the .claude/ tooling for class names. The impeccable skill's
+ * anti-pattern detector ships example strings (bg-[#f5f0e6], bg-clip-text,
+ * blur, …) that would otherwise leak banned utilities into the build.
+ */
+@source not "../../../.claude";
+
+/*
  * Generation Log entry reveal — the one choreographed motion in the system,
  * because the streaming log is the protagonist (see DESIGN.md, "過程即主角").
  * ease-out-expo, no bounce. Built on an already-visible default; reduced
