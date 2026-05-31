@@ -1,12 +1,21 @@
 <%= content_for :title, "Generate Endpoint" %>
 
-<div class="w-full max-w-2xl mx-auto">
-  <h1 class="text-2xl font-bold mb-6">Generate a Read-Only API Endpoint</h1>
+<div class="mx-auto max-w-2xl">
+  <header class="mb-8">
+    <h1 class="text-4xl font-bold tracking-tight text-content-strong text-balance">
+      Generate a read-only API endpoint
+    </h1>
+    <p class="mt-3 max-w-prose text-content-muted">
+      用自然語言描述你要的報表。本地 LLM 會在沙盒裡生成並試跑一支唯讀腳本，
+      驗證通過後即上線為動態端點 — 無需改程式碼、無需重新部署。
+    </p>
+  </header>
 
-  <%= form_with model: @generation_request, url: endpoints_path, class: "space-y-4" do |f| %>
+  <%= form_with model: @generation_request, url: endpoints_path, class: "space-y-6" do |f| %>
     <% if @generation_request.errors.any? %>
-      <div class="rounded-md bg-red-50 border border-red-200 p-4">
-        <ul class="list-disc list-inside text-sm text-red-700">
+      <div class="border border-danger bg-surface-raised p-4">
+        <p class="mb-1 font-mono text-xs font-medium text-danger">generation_request invalid</p>
+        <ul class="list-inside list-disc text-sm text-content-default">
           <% @generation_request.errors.full_messages.each do |msg| %>
             <li><%= msg %></li>
           <% end %>
@@ -14,16 +23,18 @@
       </div>
     <% end %>
 
-    <div>
-      <%= f.label :requirement, "Describe your report in natural language",
-                  class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <div class="border border-edge-default bg-surface-raised p-5">
+      <%= f.label :requirement, "Describe your report",
+                  class: "mb-2 block text-sm font-medium text-content-strong" %>
       <%= f.text_area :requirement,
                       rows: 4,
-                      placeholder: "e.g. Count all page_view events from the past 7 days",
-                      class: "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" %>
+                      class: "block w-full border border-edge-default bg-surface-base px-3 py-2.5 text-content-default placeholder:text-content-muted focus:border-secondary focus:outline-none" %>
+      <p class="mt-2 font-mono text-xs text-content-muted">
+        e.g. Count all page_view events from the past 7 days
+      </p>
     </div>
 
-    <%= f.submit "Generate Endpoint",
-                 class: "inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer" %>
+    <%= f.submit "Generate endpoint",
+                 class: "inline-flex cursor-pointer items-center bg-primary px-5 py-3 text-sm font-semibold text-content-inverse transition-colors hover:bg-primary-hover active:bg-primary-active focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary" %>
   <% end %>
 </div>
