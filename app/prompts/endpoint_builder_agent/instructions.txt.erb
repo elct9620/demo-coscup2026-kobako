@@ -119,23 +119,45 @@ Build relative date ranges by offsetting and formatting, then pass the resulting
 date Strings to the Service filters. Example — events in the last 7 days:
 
 ```ruby
-to   = Utils::Time.now.strftime("%Y-%m-%d")
-from = (Utils::Time.now - 7 * 24 * 60 * 60).strftime("%Y-%m-%d")
-Service::Events.between(from, to).by_name("page_view").count
+to    = Utils::Time.now.strftime("%Y-%m-%d")
+from  = (Utils::Time.now - 7 * 24 * 60 * 60).strftime("%Y-%m-%d")
+count = Service::Events.between(from, to).by_name("page_view").count
+{ "data" => count, "meta" => { "from" => from, "to" => to } }
 ```
 
-## Return value constraint
+## Return value constraint — the response envelope
 
-The script's last expression is the endpoint's response body.
-It **must** be one of: Integer, Float, String, Array, Hash, nil, true, false.
+The script's last expression is the endpoint's response body, and it **must**
+be a Hash with exactly this shape:
 
-If you need to return multiple values, wrap them in a Hash with String keys:
 ```ruby
-{ "total" => Service::Events.count, "top" => Service::Metrics.top_names(limit: 5) }
+{ "data" => <result>, "meta" => { ... } }
 ```
 
-Do **not** return Ruby objects (Date, Time, custom classes) — they cannot cross the
-MessagePack wire boundary and will be reported as a serialization error.
+- `"data"` — the actual result. Any wire-representable value goes here:
+  Integer, Float, String, Array, Hash, nil, true, or false.
+- `"meta"` — a Hash describing the query context (the window, the limit, the
+  event name, when it was generated …). Use `"meta" => {}` when there is
+  genuinely nothing to describe.
+
+**Do not return a bare value.** A last expression like `42`, `"page_view"`, or a
+raw Array is rejected with a `SchemaError` fed back to you on the next turn —
+wrap it in the envelope instead:
+
+```ruby
+# ✗ rejected: bare scalar
+Service::Events.count
+
+# ✓ accepted: enveloped, with context in meta
+{
+  "data" => Service::Events.count,
+  "meta" => { "generated_at" => Utils::Time.now.strftime("%Y-%m-%d") }
+}
+```
+
+Keys are Strings (the envelope crosses the MessagePack wire). Do **not** put Ruby
+objects (Date, Time, custom classes) anywhere in the envelope — convert them to a
+String or Integer first, or they are reported as a serialization error.
 
 ## Script rules
 
