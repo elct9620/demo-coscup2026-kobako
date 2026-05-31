@@ -50,6 +50,19 @@ class GenerationRequest < ApplicationRecord
     update!(status: :failed, error_message: error_message)
   end
 
+  # Messages replayed in the generation log on revisit — the agent's work:
+  # assistant turns and tool (sandbox trial) results. The system prompt and the
+  # initial user requirement are deliberately excluded: the former is infra
+  # noise (a multi-thousand-character prompt), the latter is already shown in
+  # the Requirement section above the log.
+  #
+  # @return [ActiveRecord::Relation<Message>]
+  def log_messages
+    return Message.none unless chat
+
+    chat.messages.where(role: %w[assistant tool])
+  end
+
   private
 
   # Broadcast a replace of the status Turbo Frame so the show page updates

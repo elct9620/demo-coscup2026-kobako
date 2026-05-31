@@ -37,7 +37,11 @@
             </time>
           </div>
           <% if endpoint.generation_request&.requirement.present? %>
-            <p class="mt-2 text-content-default"><%= endpoint.generation_request.requirement %></p>
+            <%# The requirement links back to its generation screen so the
+                operator can review the past run (how this endpoint was built). %>
+            <%= link_to endpoint.generation_request.requirement,
+                        endpoint_path(endpoint.generation_request),
+                        class: "mt-2 block text-content-default underline decoration-edge-subtle underline-offset-2 hover:decoration-content-default" %>
           <% end %>
           <pre class="mt-3 max-h-40 overflow-auto border border-edge-subtle bg-surface-sunken p-3 font-mono text-xs leading-relaxed text-content-default"><%= endpoint.script %></pre>
         </li>

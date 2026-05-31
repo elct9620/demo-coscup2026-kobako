@@ -40,6 +40,12 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
     assert_includes @response.body, "count page_view events"
   end
 
+  test "GET /endpoints links an endpoint to its generation record" do
+    endpoint = endpoints(:active_endpoint)
+    get endpoints_path
+    assert_select "a[href=?]", endpoint_path(endpoint.generation_request)
+  end
+
   test "GET /endpoints offers the inject-events control" do
     get endpoints_path
     assert_select "form[action=?][method=post]", demo_events_path
@@ -237,6 +243,51 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
   test "GET /endpoints/:id returns 404 for unknown id" do
     get endpoint_path(id: 9_999_999)
     assert_response :not_found
+  end
+
+  # Revisiting a finished generation must replay the persisted log so the
+  # operator can review the past run — the live Turbo stream only fills it
+  # during the original generation, leaving it empty on reload otherwise.
+  test "GET /endpoints/:id replays the persisted generation log on revisit" do
+    chat = Chat.create!
+    gr   = GenerationRequest.create!(requirement: "count events", chat: chat)
+    msg  = Message.new(role: :assistant, content: "events.count", chat: chat)
+    msg.save!(validate: false)
+
+    get endpoint_path(gr)
+
+    assert_select "[id='generation_log_#{gr.id}']" do
+      assert_select "pre", text: /events\.count/
+    end
+  end
+
+  # The log must replay the agent's work only — not the multi-thousand-character
+  # system prompt or the initial requirement (already shown above the log).
+  test "GET /endpoints/:id excludes the system prompt and requirement from the log" do
+    chat = Chat.create!
+    gr   = GenerationRequest.create!(requirement: "count events", chat: chat)
+    %i[system user].each do |role|
+      m = Message.new(role: role, content: "SECRET_PROMPT_#{role}", chat: chat)
+      m.save!(validate: false)
+    end
+    Message.new(role: :assistant, content: "events.count", chat: chat).save!(validate: false)
+
+    get endpoint_path(gr)
+
+    assert_select "[id='generation_log_#{gr.id}']" do
+      assert_select "pre", text: /events\.count/
+    end
+    assert_not_includes @response.body, "SECRET_PROMPT_system"
+    assert_not_includes @response.body, "SECRET_PROMPT_user"
+  end
+
+  test "GET /endpoints/:id renders an empty log when no chat is attached" do
+    gr = GenerationRequest.create!(requirement: "count events")
+
+    get endpoint_path(gr)
+
+    assert_response :ok
+    assert_select "[id='generation_log_#{gr.id}']", text: ""
   end
 
   # ---------------------------------------------------------------------------
