@@ -3,32 +3,32 @@
 require "test_helper"
 
 # Unit tests for EndpointGeneration context — the DCI orchestrator that drives
-# the EndpointBuilderAgent error-as-feedback loop and persists a validated script
-# as an Endpoint on success.
+# the EndpointBuilderAgent error-as-feedback loop and persists the captured
+# script as an Endpoint on success.
 #
 # Mock strategy:
 #   EndpointGeneration.new(requirement, agent:) accepts an optional injected
-#   agent.  Tests pass a FakeAgent that simulates the two outcomes without
-#   hitting a real LMStudio instance:
+#   agent.  The real agent answers "which script is final" through
+#   #submit_tool.captured_script (set by SubmitEndpointTool during the loop), so
+#   the fakes here only need to expose #ask and #submit_tool — no synthetic chat
+#   history is required.
 #
-#   1. FakeSuccessAgent#ask — injects a synthetic message history into its own
-#      in-memory RubyLLM::Chat (assistant tool_call + tool result success:true),
-#      then returns the final assistant message.  EndpointGeneration finds the
-#      last success result, extracts the script, and creates an Endpoint.
+#   1. FakeSuccessAgent      — #submit_tool.captured_script returns a script.
+#                              EndpointGeneration persists it as an Endpoint.
+#   2. FakeFailureAgent      — #ask raises IterationLimitError (cap hit).
+#                              EndpointGeneration rescues → { ok: false }.
+#   3. FakeNoSubmitAgent     — loop ends but captured_script is nil (agent never
+#                              submitted a valid script). → ExtractionError → false.
 #
-#   2. FakeFailureAgent#ask — raises EndpointBuilderAgent::IterationLimitError.
-#      EndpointGeneration rescues, returns { ok: false, error: ... }, and does
-#      NOT create any Endpoint.
-#
-# The real LLM end-to-end round-trip is deferred to test item #14.
+# The real LLM end-to-end round-trip is covered by the gated E2E test.
 class EndpointGenerationTest < ActiveSupport::TestCase
-  VALIDATED_SCRIPT = "Service::Events.all.count"
+  VALIDATED_SCRIPT = '{ "data" => Service::Events.count, "meta" => {} }'
 
   # ---------------------------------------------------------------------------
   # Success path
   # ---------------------------------------------------------------------------
 
-  test "returns ok:true with endpoint when agent validates a script" do
+  test "returns ok:true with endpoint when agent captures a validated script" do
     result = EndpointGeneration.new("count all events", agent: fake_success_agent).call
 
     assert result[:ok], "result must be ok:true on success"
@@ -36,6 +36,13 @@ class EndpointGenerationTest < ActiveSupport::TestCase
     assert_instance_of Endpoint, result[:endpoint]
     assert result[:endpoint].persisted?, "endpoint must be persisted"
     assert_equal VALIDATED_SCRIPT, result[:endpoint].script
+  end
+
+  test "persists the script captured by submit_endpoint, not anything else" do
+    result = EndpointGeneration.new("count all events", agent: fake_success_agent).call
+
+    assert_equal VALIDATED_SCRIPT, result[:endpoint].script,
+                 "the persisted script must be exactly submit_tool.captured_script"
   end
 
   test "creates exactly one Endpoint record on success" do
@@ -57,7 +64,7 @@ class EndpointGenerationTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------------------------------
-  # Failure path — IterationLimitError
+  # Failure path — IterationLimitError (cap hit)
   # ---------------------------------------------------------------------------
 
   test "returns ok:false when agent raises IterationLimitError" do
@@ -84,31 +91,42 @@ class EndpointGenerationTest < ActiveSupport::TestCase
     end
   end
 
-  # ---------------------------------------------------------------------------
-  # Failure path — ExtractionError (agent finishes but no success tool message)
-  # ---------------------------------------------------------------------------
+  # Strict cap policy: hitting MAX_ITERATIONS is a failure even if an earlier
+  # submission had succeeded — the captured script is discarded, not shipped.
+  test "cap hit fails and persists nothing even if a script was captured" do
+    agent = FakeFailureAgent.new(captured_script: VALIDATED_SCRIPT)
 
-  test "returns ok:false when agent completes without a successful tool call" do
-    result = EndpointGeneration.new("vague requirement", agent: fake_no_tool_agent).call
-
-    assert_not result[:ok], "result must be ok:false when no success tool message exists"
-  end
-
-  test "does not create an Endpoint when no successful tool call is present" do
     assert_no_difference "Endpoint.count" do
-      EndpointGeneration.new("vague requirement", agent: fake_no_tool_agent).call
+      result = EndpointGeneration.new("ran long", agent: agent).call
+      assert_not result[:ok], "cap hit must fail regardless of an earlier capture"
     end
   end
 
-  test "failure result contains an error message when no success tool call is present" do
-    result = EndpointGeneration.new("vague requirement", agent: fake_no_tool_agent).call
+  # ---------------------------------------------------------------------------
+  # Failure path — ExtractionError (loop ended, nothing was submitted)
+  # ---------------------------------------------------------------------------
+
+  test "returns ok:false when the agent never captured a valid script" do
+    result = EndpointGeneration.new("vague requirement", agent: fake_no_submit_agent).call
+
+    assert_not result[:ok], "result must be ok:false when captured_script is nil"
+  end
+
+  test "does not create an Endpoint when nothing was submitted" do
+    assert_no_difference "Endpoint.count" do
+      EndpointGeneration.new("vague requirement", agent: fake_no_submit_agent).call
+    end
+  end
+
+  test "failure result contains an error message when nothing was submitted" do
+    result = EndpointGeneration.new("vague requirement", agent: fake_no_submit_agent).call
 
     assert result[:error].present?, "failure result must include an error message"
   end
 
   test "does not raise ExtractionError to the caller" do
     assert_nothing_raised do
-      EndpointGeneration.new("vague requirement", agent: fake_no_tool_agent).call
+      EndpointGeneration.new("vague requirement", agent: fake_no_submit_agent).call
     end
   end
 
@@ -131,38 +149,8 @@ class EndpointGenerationTest < ActiveSupport::TestCase
     assert_not result[:ok]
   end
 
-  # ---------------------------------------------------------------------------
-  # Persisted Chat path (#13) — normalize_messages
-  # ---------------------------------------------------------------------------
-  #
-  # When EndpointGeneration is given a real persisted Chat (AR record), the
-  # agent stores messages in the DB.  extract_validated_script must normalize
-  # AR Message records to RubyLLM::Message objects before walking the history.
-  #
-  # We verify by passing a FakeSuccessAgent backed by a persisted Chat that has
-  # the correct message rows, and confirm the script is correctly extracted.
-  # ---------------------------------------------------------------------------
-
-  test "extracts validated script from persisted AR chat messages" do
-    result = EndpointGeneration.new("count all events", agent: fake_success_agent_with_persisted_chat).call
-
-    assert result[:ok], "should succeed with persisted chat messages: #{result[:error]}"
-    assert_equal VALIDATED_SCRIPT, result[:endpoint].script
-  end
-
   private
 
-  # Returns a fake agent whose #ask method injects a synthetic, successful
-  # message history into its own in-memory RubyLLM::Chat, simulating:
-  #
-  #   1. assistant message with tool_calls: { id => ToolCall(run_script_tool, {script:}) }
-  #   2. tool   message with content: "{success: true, result: 42}"  (Ruby 3.4+ Hash#to_s),
-  #              tool_call_id: <same id>
-  #   3. assistant message (final confirmation, no tool_calls)
-  #
-  # EndpointGeneration scans backwards for the last :tool message whose content
-  # parses to success:true, then reads the script from the matching assistant
-  # tool_call arguments.
   def fake_success_agent
     FakeSuccessAgent.new(VALIDATED_SCRIPT)
   end
@@ -171,133 +159,48 @@ class EndpointGenerationTest < ActiveSupport::TestCase
     FakeFailureAgent.new
   end
 
-  def fake_success_agent_with_persisted_chat
-    FakeSuccessAgentWithPersistedChat.new(VALIDATED_SCRIPT)
-  end
-
-  def fake_no_tool_agent
-    FakeNoToolAgent.new
+  def fake_no_submit_agent
+    FakeNoSubmitAgent.new
   end
 
   # ---------------------------------------------------------------------------
   # Fake agent helpers
   # ---------------------------------------------------------------------------
 
-  # Minimal duck-type of EndpointBuilderAgent that exposes #ask and #chat.
-  # Uses a real RubyLLM::Chat in-memory (no model resolution needed) so that
-  # EndpointGeneration can walk messages just as it would with the real agent.
+  # Minimal stand-in for SubmitEndpointTool: just carries captured_script.
+  CapturedTool = Struct.new(:captured_script)
+
+  # Duck-type of EndpointBuilderAgent exposing #ask and #submit_tool.
+  # #ask is a no-op; the captured script is what EndpointGeneration reads.
   class FakeSuccessAgent
-    attr_reader :chat
+    attr_reader :submit_tool
 
-    def initialize(validated_script)
-      @validated_script = validated_script
-      @chat = RubyLLM::Chat.new(model: "gpt-4o-mini")
+    def initialize(captured_script)
+      @submit_tool = CapturedTool.new(captured_script)
     end
 
-    def ask(_requirement)
-      tool_call_id = "call_test_#{SecureRandom.hex(4)}"
-      tool_call = RubyLLM::ToolCall.new(
-        id: tool_call_id,
-        name: "run_script_tool",
-        arguments: { script: @validated_script }
-      )
-
-      # 1. Assistant message that requested the tool call
-      @chat.add_message(
-        RubyLLM::Message.new(
-          role: :assistant,
-          content: nil,
-          tool_calls: { tool_call_id.to_sym => tool_call }
-        )
-      )
-
-      # 2. Tool result message with success: true
-      @chat.add_message(
-        RubyLLM::Message.new(
-          role: :tool,
-          content: { success: true, result: 42 }.to_s,
-          tool_call_id: tool_call_id
-        )
-      )
-
-      # 3. Final assistant confirmation
-      final = RubyLLM::Message.new(role: :assistant, content: "Script validated successfully.")
-      @chat.add_message(final)
-      final
-    end
+    def ask(_requirement) = nil
   end
 
-  # Like FakeSuccessAgent but uses a *persisted* AR Chat record so that
-  # EndpointGeneration exercises the normalize_messages path (#13).
-  #
-  # Reuses Chat#add_message (the AR-backed persistence method) to store the
-  # same three-message sequence as FakeSuccessAgent.
-  class FakeSuccessAgentWithPersistedChat
-    attr_reader :chat
-
-    def initialize(validated_script)
-      @validated_script = validated_script
-      @chat = Chat.create!
-    end
-
-    def ask(_requirement)
-      tool_call_id = "call_persist_#{SecureRandom.hex(4)}"
-      tool_call = RubyLLM::ToolCall.new(
-        id: tool_call_id,
-        name: "run_script_tool",
-        arguments: { script: @validated_script }
-      )
-
-      # 1. Assistant message with tool call
-      @chat.add_message(
-        RubyLLM::Message.new(
-          role: :assistant,
-          content: nil,
-          tool_calls: { tool_call_id.to_sym => tool_call }
-        )
-      )
-
-      # 2. Tool result (success: true)
-      @chat.add_message(
-        RubyLLM::Message.new(
-          role: :tool,
-          content: { success: true, result: 42 }.to_s,
-          tool_call_id: tool_call_id
-        )
-      )
-
-      # 3. Final assistant confirmation
-      final = RubyLLM::Message.new(role: :assistant, content: "Done.")
-      @chat.add_message(final)
-      final
-    end
-  end
-
-  # Simulates an agent that completes normally (no exception) but whose chat
-  # contains only a plain assistant text message — no RunScriptTool call and
-  # therefore no "success: true" tool result.  EndpointGeneration should rescue
-  # ExtractionError and return { ok: false, error: ... }.
-  class FakeNoToolAgent
-    attr_reader :chat
+  # Loop ends cleanly but the agent never submitted a valid script.
+  class FakeNoSubmitAgent
+    attr_reader :submit_tool
 
     def initialize
-      @chat = RubyLLM::Chat.new(model: "gpt-4o-mini")
+      @submit_tool = CapturedTool.new(nil)
     end
 
-    def ask(_requirement)
-      final = RubyLLM::Message.new(role: :assistant, content: "I am not sure what to do.")
-      @chat.add_message(final)
-      final
-    end
+    def ask(_requirement) = nil
   end
 
-  # Simulates exhaustion of MAX_ITERATIONS: ask() raises IterationLimitError.
+  # Simulates exhaustion of MAX_ITERATIONS: #ask raises IterationLimitError.
+  # captured_script is never read because the cap is a failure regardless — it
+  # may even be set (see the strict-cap test) and must still be discarded.
   class FakeFailureAgent
-    attr_reader :chat
+    attr_reader :submit_tool
 
-    def initialize
-      messages = []
-      @chat = Object.new.tap { |c| c.define_singleton_method(:messages) { messages } }
+    def initialize(captured_script: nil)
+      @submit_tool = CapturedTool.new(captured_script)
     end
 
     def ask(_requirement)
