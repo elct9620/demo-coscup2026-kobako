@@ -1,12 +1,22 @@
 <%= content_for :title, "Live Endpoints" %>
 
 <div class="mx-auto max-w-3xl space-y-8">
-  <header class="flex items-end justify-between gap-4 border-b border-edge-default pb-4">
-    <div>
-      <h1 class="text-3xl font-bold tracking-tight text-content-strong">Live endpoints</h1>
-      <p class="mt-2 text-content-muted">已驗證、正在線上服務的唯讀 API 端點。</p>
+  <header class="space-y-4 border-b border-edge-default pb-4">
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight text-content-strong">Live endpoints</h1>
+        <p class="mt-2 text-content-muted">已驗證、正在線上服務的唯讀 API 端點。</p>
+      </div>
+      <span class="shrink-0 font-mono text-sm text-content-muted"><%= pluralize(@endpoints.size, "endpoint") %></span>
     </div>
-    <span class="shrink-0 font-mono text-sm text-content-muted"><%= pluralize(@endpoints.size, "endpoint") %></span>
+
+    <%# Operator control panel — demo tooling. "Inject events" writes a fresh
+        batch through ActiveRecord (not the sandbox) so an already-live endpoint
+        visibly changes on its next request. %>
+    <div class="flex flex-wrap gap-3">
+      <%= button_to "灌入一批事件", demo_events_path, method: :post,
+                    class: "inline-flex items-center border border-edge-strong bg-surface-raised px-4 py-2 text-sm font-medium text-content-strong transition-colors hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary" %>
+    </div>
   </header>
 
   <% if @endpoints.any? %>

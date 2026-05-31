@@ -40,6 +40,11 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
     assert_includes @response.body, "count page_view events"
   end
 
+  test "GET /endpoints offers the inject-events control" do
+    get endpoints_path
+    assert_select "form[action=?][method=post]", demo_events_path
+  end
+
   test "GET /endpoints renders an empty state linking to the form when none exist" do
     GenerationRequest.update_all(endpoint_id: nil)
     Endpoint.delete_all

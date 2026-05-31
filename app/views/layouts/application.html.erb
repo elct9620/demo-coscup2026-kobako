@@ -59,6 +59,18 @@
     </header>
 
     <main class="mx-auto flex w-full min-h-0 max-w-5xl flex-1 flex-col px-5 py-12 sm:py-16">
+      <%# Operator feedback for the demo tooling (inject events / reset board).
+          shrink-0 so it never steals height from a flex-fill page below it.
+          Full literal class strings (not interpolated) so Tailwind's static
+          scanner emits them. %>
+      <% flash.each do |type, message| %>
+        <% tone = type.to_s == "alert" ?
+             "border-danger/45 bg-danger/10" :
+             "border-success/45 bg-success/10" %>
+        <div class="mb-6 shrink-0 border <%= tone %> px-4 py-3 font-mono text-sm text-content-strong" role="status">
+          <%= message %>
+        </div>
+      <% end %>
       <%= yield %>
     </main>
   </body>

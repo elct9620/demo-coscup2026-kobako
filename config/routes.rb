@@ -16,6 +16,11 @@ Rails.application.routes.draw do
   # No edit or delete: endpoints are immutable once validated and live.
   resources :endpoints, only: %i[index new create show]
 
+  # Operator demo tooling: inject a fresh batch of analytics events so an
+  # already-live endpoint visibly changes on its next request. Writes through
+  # plain ActiveRecord — never the sandbox — so the read-only defense is intact.
+  resources :demo_events, only: :create
+
   # Root → generation form.
   root "endpoints#new"
 
