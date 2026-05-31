@@ -7,7 +7,7 @@
   message.content: text content of the message (plain string or JSON for tool calls)
 %>
 <% llm_message = message.to_llm %>
-<div class="rounded border border-gray-200 p-3 text-sm font-mono" data-role="<%= message.role %>">
+<div id="<%= dom_id(message) %>" class="rounded border border-gray-200 p-3 text-sm font-mono" data-role="<%= message.role %>">
   <p class="text-xs text-gray-400 font-sans mb-1 capitalize"><%= message.role %></p>
   <% if llm_message.tool_call? %>
     <% message.tool_calls.each do |tc| %>

@@ -83,4 +83,65 @@ class MessageTest < ActiveSupport::TestCase
 
     assert Message.exists?(msg.id), "message must be readable even if broadcast fails"
   end
+
+  # ---------------------------------------------------------------------------
+  # Completion re-broadcast (replace) — the fix for the "(empty)" stream bug
+  # ---------------------------------------------------------------------------
+  #
+  # RubyLLM persists each assistant turn in two phases (chat_methods.rb):
+  #   1. before_message → persist_new_message: create!(role: :assistant, content: "")
+  #      → fires after_create_commit → we append the EMPTY placeholder.
+  #   2. after_message  → persist_message_completion: UPDATE fills role/content and
+  #      attaches tool_calls.
+  # Without an after_update_commit re-broadcast the operator only ever sees the
+  # empty placeholder.  These tests pin the replace broadcast that fixes it.
+
+  test "registers an after_update_commit callback to re-broadcast completed messages" do
+    # _commit_callbacks holds both create- and update-commit callbacks; the
+    # filter name is enough to prove our re-broadcast callback is registered.
+    assert_includes Message._commit_callbacks.map(&:filter),
+                    :broadcast_completed_message_to_generation_request
+  end
+
+  test "re-broadcast method sends a turbo stream replace carrying the filled-in content" do
+    # Phase 1: empty placeholder (what RubyLLM creates first).
+    msg = Message.new(role: :assistant, content: "", chat: @chat)
+    msg.save!(validate: false)
+    # Phase 2: RubyLLM fills the row via UPDATE.
+    msg.update!(role: :tool, content: "{success: true, result: 2}")
+
+    broadcasts = capture_turbo_stream_broadcasts @gr do
+      msg.send(:broadcast_completed_message_to_generation_request)
+    end
+
+    assert_equal 1, broadcasts.size
+    assert_equal "replace", broadcasts.first["action"]
+    assert_equal ActionView::RecordIdentifier.dom_id(msg), broadcasts.first["target"]
+    assert_includes broadcasts.first.to_html, "success: true"
+  end
+
+  test "re-broadcast method sends nothing when chat has no generation_request" do
+    orphan_chat = Chat.create!
+    msg = Message.new(role: :assistant, content: "orphan", chat: orphan_chat)
+    msg.save!(validate: false)
+
+    assert_no_turbo_stream_broadcasts @gr do
+      assert_nothing_raised do
+        msg.send(:broadcast_completed_message_to_generation_request)
+      end
+    end
+  end
+
+  test "re-broadcast method swallows Action Cable errors so generation loop is unaffected" do
+    msg = Message.new(role: :assistant, content: "resilient", chat: @chat)
+    msg.save!(validate: false)
+
+    def msg.broadcast_replace_to(*_args, **_kwargs)
+      raise "Action Cable unavailable"
+    end
+
+    assert_nothing_raised do
+      msg.send(:broadcast_completed_message_to_generation_request)
+    end
+  end
 end
