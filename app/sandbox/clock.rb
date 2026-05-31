@@ -26,6 +26,10 @@
 # Script example:
 #   Utils::Time.now.strftime("%Y-%m-%d")                      # => "2026-05-31"
 #   (Utils::Time.now - 7 * 24 * 60 * 60).strftime("%Y-%m-%d") # => "2026-05-24"
+#
+# RBS-in-prompt sync: #now and the time object's usable methods are mirrored as
+# RBS in app/prompts/endpoint_builder_agent/instructions.txt.erb (Utils::Time /
+# the _Time interface). The two are hand-synced — keep the prompt in step.
 class Clock
   # Returns the current time as a Time (ActiveSupport::TimeWithZone via
   # Time.current, so it respects config.time_zone).  Crosses the sandbox

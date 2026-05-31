@@ -22,6 +22,10 @@
 # Script example:
 #   Service::Events.between("2026-01-01", "2026-05-31").by_name("page_view").count
 #   Service::Events.limit(20).to_a
+#
+# RBS-in-prompt sync: this public read API is mirrored as RBS signatures in
+# app/prompts/endpoint_builder_agent/instructions.txt.erb (Service::Events).
+# The two are hand-synced — when a signature here changes, update the prompt.
 class EventQuery
   # Maximum rows returned by #to_a when no explicit limit is set.
   # Guards against unbounded queries from untrusted scripts (DoS mitigation).

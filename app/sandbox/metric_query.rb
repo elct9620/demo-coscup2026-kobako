@@ -23,6 +23,10 @@
 #   Service::Metrics.daily_counts(since: "2026-01-01")
 #   Service::Metrics.top_names(limit: 5)
 #   Service::Metrics.total_count(name: "page_view")
+#
+# RBS-in-prompt sync: this public read API is mirrored as RBS signatures in
+# app/prompts/endpoint_builder_agent/instructions.txt.erb (Service::Metrics).
+# The two are hand-synced — when a signature here changes, update the prompt.
 class MetricQuery
   # Default result count for #top_names when the caller omits +limit+.
   DEFAULT_LIMIT = 10

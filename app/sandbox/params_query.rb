@@ -30,6 +30,10 @@
 #   String, Integer, or nil.  All other types are rejected at construction via
 #   +ReadOnlySandbox#call+ — callers receive a structured InvalidParamsError
 #   result before the sandbox is invoked.
+#
+# RBS-in-prompt sync: #fetch is mirrored as an RBS signature in
+# app/prompts/endpoint_builder_agent/instructions.txt.erb (Service::Params).
+# The two are hand-synced — when the signature here changes, update the prompt.
 class ParamsQuery
   # Allowed value types.  Any value not in this set is rejected.
   ALLOWED_VALUE_TYPES = [ String, Integer, NilClass ].freeze
