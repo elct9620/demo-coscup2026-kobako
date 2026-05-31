@@ -7,13 +7,16 @@
 %>
 <%= turbo_stream_from @generation_request %>
 
-<%# group = the :has() scope for the Generation log's terminal-state release.
+<%# group/genlog = the named :has() scope for the Generation log's terminal-state
+    release. Named (not the bare `group`) so it can never be triggered by another
+    .group elsewhere — the layout header's logo link uses an unnamed group too.
     Once the status partial below swaps in its data-generation-finished panel
-    (succeeded / failed), the group-has-* variants further down drop the log's
-    bounded scroll height so the finished record flows as a normal, page-scrolled
-    document. Driven entirely in CSS off that sentinel — no extra broadcast, no
-    re-render of the streamed entries, so there is no completion flicker. %>
-<div class="group mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col space-y-8">
+    (succeeded / failed), the group-has-*/genlog variants further down drop the
+    log's bounded scroll height so the finished record flows as a normal,
+    page-scrolled document. Driven entirely in CSS off that sentinel — no extra
+    broadcast, no re-render of the streamed entries, so there is no completion
+    flicker. %>
+<div class="group/genlog mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col space-y-8">
   <header>
     <h1 class="text-3xl font-bold tracking-tight text-content-strong">Generation status</h1>
     <p class="mt-2 font-mono text-xs text-content-muted">error-as-feedback loop · what you verify is what ships</p>
@@ -43,16 +46,16 @@
       below can tail its own content. Once terminal (group-has the finished
       sentinel) it sheds flex-1 and sizes to content, letting the whole record
       grow and the document scroll. %>
-  <section class="flex min-h-0 flex-1 flex-col gap-3 group-has-[[data-generation-finished]]:flex-none">
+  <section class="flex min-h-0 flex-1 flex-col gap-3 group-has-[[data-generation-finished]]/genlog:flex-none">
     <div class="flex items-baseline justify-between border-b border-edge-default pb-2">
       <h2 class="text-sm font-semibold text-content-strong">Generation log</h2>
       <%# The indicator doubles as a reading cue: a live pulse while streaming,
           then a one-line caption once terminal so the audience knows the
           finished log reads top-to-bottom in the order it happened. %>
-      <span class="inline-flex items-center gap-1.5 font-mono text-xs text-content-muted group-has-[[data-generation-finished]]:hidden">
+      <span class="inline-flex items-center gap-1.5 font-mono text-xs text-content-muted group-has-[[data-generation-finished]]/genlog:hidden">
         <span class="h-1.5 w-1.5 rounded-full bg-secondary" aria-hidden="true"></span>live
       </span>
-      <span class="hidden font-mono text-xs text-content-muted group-has-[[data-generation-finished]]:inline">完整紀錄 · 由上而下為發生順序</span>
+      <span class="hidden font-mono text-xs text-content-muted group-has-[[data-generation-finished]]/genlog:inline">完整紀錄 · 由上而下為發生順序</span>
     </div>
     <%# Scroll viewport — fills the remaining viewport height (flex-1 + min-h-0)
         and tails its own content, so it adapts to any projector resolution
@@ -61,7 +64,7 @@
         Once terminal it releases the bound (flex-none + overflow-visible): the
         entries stay in place but the viewport stops clipping, so the full run
         lays out top-to-bottom and the page — not this box — scrolls. %>
-    <div data-controller="generation-log" class="min-h-0 flex-1 overflow-y-auto group-has-[[data-generation-finished]]:flex-none group-has-[[data-generation-finished]]:overflow-visible">
+    <div data-controller="generation-log" class="min-h-0 flex-1 overflow-y-auto group-has-[[data-generation-finished]]/genlog:flex-none group-has-[[data-generation-finished]]/genlog:overflow-visible">
       <%# Persisted messages are rendered server-side so revisiting a finished
           run replays the full log (the live Turbo stream only fills this during
           the original generation). For an in-flight view this is safe too:

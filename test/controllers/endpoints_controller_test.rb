@@ -338,8 +338,8 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
   # scroll height so the finished record reads top-to-bottom as a normal,
   # page-scrolled document instead of inside a squeezed live window. That
   # release is CSS-only: the terminal status panel carries a
-  # data-generation-finished sentinel, and the log's group-has-* variants
-  # (scoped to the page-root .group) resolve against it. These guard that
+  # data-generation-finished sentinel, and the log's group-has-*/genlog variants
+  # (scoped to the page-root named group/genlog) resolve against it. These guard that
   # contract end-to-end — the sentinel on each terminal branch, its absence
   # while pending, and the armed release on the viewport.
   test "GET /endpoints/:id marks the succeeded status panel as finished" do
@@ -374,9 +374,12 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
 
     get endpoint_path(gr)
 
-    viewport = css_select(".group [data-controller='generation-log']").first
-    assert_not_nil viewport, "log viewport must sit inside the page-root :has() scope (.group)"
-    assert_includes viewport["class"], "group-has-[[data-generation-finished]]:flex-none"
-    assert_includes viewport["class"], "group-has-[[data-generation-finished]]:overflow-visible"
+    # The named :has() scope must wrap the viewport (~= matches the slashed
+    # class token without CSS-escaping it), and the viewport must carry the
+    # matching /genlog release variants — otherwise the release is inert.
+    assert_select "[class~='group/genlog'] [data-controller='generation-log']"
+    viewport = css_select("[data-controller='generation-log']").first
+    assert_includes viewport["class"], "group-has-[[data-generation-finished]]/genlog:flex-none"
+    assert_includes viewport["class"], "group-has-[[data-generation-finished]]/genlog:overflow-visible"
   end
 end
