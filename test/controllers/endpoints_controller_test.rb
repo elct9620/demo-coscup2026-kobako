@@ -333,4 +333,50 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
     assert_includes viewport["class"], "min-h-0"
     assert_includes viewport["class"], "overflow-y-auto"
   end
+
+  # Once a run reaches a terminal state the Generation log sheds its bounded
+  # scroll height so the finished record reads top-to-bottom as a normal,
+  # page-scrolled document instead of inside a squeezed live window. That
+  # release is CSS-only: the terminal status panel carries a
+  # data-generation-finished sentinel, and the log's group-has-* variants
+  # (scoped to the page-root .group) resolve against it. These guard that
+  # contract end-to-end — the sentinel on each terminal branch, its absence
+  # while pending, and the armed release on the viewport.
+  test "GET /endpoints/:id marks the succeeded status panel as finished" do
+    endpoint = Endpoint.create!(script: "Service::Events.count")
+    gr = GenerationRequest.create!(requirement: "count all events")
+    gr.succeeded!(endpoint: endpoint)
+
+    get endpoint_path(gr)
+
+    assert_select "[data-generation-finished]"
+  end
+
+  test "GET /endpoints/:id marks the failed status panel as finished" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+    gr.failed!(error_message: "Stopped after 5 iterations without success.")
+
+    get endpoint_path(gr)
+
+    assert_select "[data-generation-finished]"
+  end
+
+  test "GET /endpoints/:id leaves a pending run without the finished sentinel" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+
+    get endpoint_path(gr)
+
+    assert_select "[data-generation-finished]", count: 0
+  end
+
+  test "GET /endpoints/:id arms the terminal log-height release on the viewport" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+
+    get endpoint_path(gr)
+
+    viewport = css_select(".group [data-controller='generation-log']").first
+    assert_not_nil viewport, "log viewport must sit inside the page-root :has() scope (.group)"
+    assert_includes viewport["class"], "group-has-[[data-generation-finished]]:flex-none"
+    assert_includes viewport["class"], "group-has-[[data-generation-finished]]:overflow-visible"
+  end
 end

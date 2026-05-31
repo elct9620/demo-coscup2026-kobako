@@ -1,7 +1,15 @@
 <%#
   Status partial — rendered inside the Turbo Frame on show.
   Three states, each with three signals (colour + icon + label) so they read
-  on a projector and for colour-blind viewers.  #13 replaces this partial via:
+  on a projector and for colour-blind viewers.
+
+  data-generation-finished marks the two terminal panels (succeeded / failed).
+  It is the single sentinel the Generation log keys off (via :has() in
+  show.html.erb) to drop its bounded scroll height once the run is over, so the
+  finished record reads top-to-bottom as a normal document instead of inside a
+  squeezed live-streaming window. Pending carries no sentinel.
+
+  #13 replaces this partial via:
     Turbo::StreamsChannel.broadcast_replace_to(
       generation_request,
       target: dom_id(generation_request),
@@ -16,7 +24,7 @@
   </div>
 
 <% elsif generation_request.succeeded? %>
-  <div class="space-y-3 border border-success/45 bg-success/10 p-4">
+  <div data-generation-finished class="space-y-3 border border-success/45 bg-success/10 p-4">
     <div class="flex items-center gap-2">
       <svg class="h-4 w-4 shrink-0 text-success" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
         <path d="M4 10.5l4 4 8-9" />
@@ -41,7 +49,7 @@
   </div>
 
 <% elsif generation_request.failed? %>
-  <div class="space-y-2 border border-danger/45 bg-danger/10 p-4">
+  <div data-generation-finished class="space-y-2 border border-danger/45 bg-danger/10 p-4">
     <div class="flex items-center gap-2">
       <svg class="h-4 w-4 shrink-0 text-danger" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true">
         <path d="M5 5l10 10M15 5L5 15" />
