@@ -243,6 +243,40 @@ class ReadOnlySandboxTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------------------------------
+  # Utils::Time — current-time capability (Kobako mruby has no Time constant)
+  # ---------------------------------------------------------------------------
+
+  test "Utils::Time.now is accessible and formats today's date via strftime" do
+    result = @sandbox.call('Utils::Time.now.strftime("%Y-%m-%d")')
+    assert result[:ok], "expected ok: true, got #{result.inspect}"
+    assert_equal Time.current.strftime("%Y-%m-%d"), result[:result]
+  end
+
+  test "Utils::Time.now supports relative-date arithmetic (the logged failure pattern)" do
+    # This reproduces the most common generation failure from the run logs:
+    # the LLM writes `Time.now - 7*24*60*60` to compute "7 days ago", which used
+    # to raise `uninitialized constant Time`. With Utils::Time bound, the same
+    # arithmetic + strftime now succeeds across the Handle wire.
+    result = @sandbox.call('(Utils::Time.now - 7 * 24 * 60 * 60).strftime("%Y-%m-%d")')
+    assert result[:ok], "expected ok: true, got #{result.inspect}"
+    assert_equal (Time.current - 7.days).strftime("%Y-%m-%d"), result[:result]
+  end
+
+  test "Utils::Time.now.to_i returns a representable Integer terminal value" do
+    result = @sandbox.call("Utils::Time.now.to_i")
+    assert result[:ok]
+    assert_kind_of Integer, result[:result]
+  end
+
+  test "bare Time constant is still undefined — only the Utils::Time namespace is exposed" do
+    # The fix binds Utils::Time, not a global Time. The capability boundary stays
+    # narrow: scripts must reach time through the namespace, never a leaked global.
+    result = @sandbox.call("Time.now")
+    refute result[:ok], "expected bare Time to remain undefined in the sandbox"
+    assert_equal "SandboxError", result[:error][:type]
+  end
+
+  # ---------------------------------------------------------------------------
   # Default options
   # ---------------------------------------------------------------------------
 

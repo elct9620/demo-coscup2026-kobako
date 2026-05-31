@@ -20,15 +20,17 @@
 # Trust boundary: script is LLM-generated (untrusted). The sandbox is the sole
 # enforcement point — this tool must not add any execution path outside it.
 class RunScriptTool < RubyLLM::Tool
-  desc "Trial-runs an mruby script in the read-only sandbox. " \
-       "Available services: Service::Events (EventQuery) and Service::Metrics (MetricQuery). " \
+  desc "Trial-runs an mruby script in the restricted read-only sandbox (no Time/Date/require). " \
+       "Available namespaces: Service::Events, Service::Metrics, Service::Params, and Utils::Time " \
+       "(use Utils::Time.now for the current time — the sandbox has no Time constant). " \
        "Returns a result hash the agent uses to verify correctness or self-correct on error."
 
   param :script,
         type: "string",
         desc: "The mruby script to evaluate. Must return a MessagePack-serializable value " \
               "(Integer, Float, String, Array, Hash, nil, or Boolean). " \
-              "Access data via Service::Events and Service::Metrics."
+              "Access data via Service::Events / Service::Metrics / Service::Params; " \
+              "get the current time via Utils::Time.now (Time/Date constants are unavailable)."
 
   def initialize(timeout: ReadOnlySandbox::DEFAULT_TIMEOUT,
                  memory_limit: ReadOnlySandbox::DEFAULT_MEMORY_LIMIT)

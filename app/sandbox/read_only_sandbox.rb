@@ -40,12 +40,14 @@
 #                                     message: String,
 #                                     details: Hash | nil } }
 #
-# Script namespace (bound via Service::Events / Service::Metrics):
+# Script namespace (bound via Service::Events / Service::Metrics / Utils::Time):
 #   Service::Events.count
 #   Service::Events.between("2026-01-01", "2026-05-31").by_name("page_view").count
 #   Service::Metrics.total_count(name: "page_view")
 #   Service::Metrics.daily_counts(since: "2026-01-01")
 #   Service::Metrics.top_names(limit: 5)
+#   Utils::Time.now.strftime("%Y-%m-%d")
+#   (Utils::Time.now - 7 * 24 * 60 * 60).strftime("%Y-%m-%d")
 class ReadOnlySandbox
   # Raised internally when HTTP query params fail the type validation gate.
   # Never propagates to callers — it is always converted to a structured result
@@ -133,19 +135,25 @@ class ReadOnlySandbox
   end
 
   # Build a fresh Kobako::Sandbox with capability boundary:
-  # only EventQuery (Service::Events), MetricQuery (Service::Metrics), and
-  # (when params are present) ParamsQuery (Service::Params) are bound —
+  # only EventQuery (Service::Events), MetricQuery (Service::Metrics),
+  # ParamsQuery (Service::Params), and Clock (Utils::Time) are bound —
   # no write path is reachable from the script.
   #
   # Service::Params is always bound so that scripts can unconditionally call
   # Service::Params.fetch("key") without a NameError when no params are given
   # (they simply get nil back from an empty ParamsQuery).
+  #
+  # Utils::Time is bound because Kobako's mruby has no Time constant; Clock#now
+  # is the sole way a script can obtain the current time to build relative date
+  # ranges.  It is a pure read-only capability (see Clock).
   def build_sandbox(params)
     sandbox = Kobako::Sandbox.new(timeout: @timeout, memory_limit: @memory_limit)
     sandbox.define(:Service)
            .bind(:Events,  EventQuery.new)
            .bind(:Metrics, MetricQuery.new)
            .bind(:Params,  ParamsQuery.new(params))
+    sandbox.define(:Utils)
+           .bind(:Time, Clock.new)
     sandbox
   end
 
