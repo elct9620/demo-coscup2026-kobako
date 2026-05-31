@@ -66,67 +66,7 @@ puts "  page_view:    #{Event.by_name('page_view').count}"
 puts "  button_click: #{Event.by_name('button_click').count}"
 puts "  form_submit:  #{Event.by_name('form_submit').count}"
 
-# --- Demo endpoints (already-live, validated read-only scripts) ---
-# So the Endpoints list isn't empty on a fresh setup: the audience sees a few
-# working endpoints before the operator generates one live. These scripts are
-# real, sandbox-verified read-only mruby (the same shape the agent generates).
-# Date windows are baked from the current date at seed time, so re-seeding
-# right before the demo always lines up with the freshly-seeded 30 days above.
-today_iso   = Date.current.iso8601
-since_iso   = 30.days.ago.to_date.iso8601
-# Narrow recent window + high limit so to_a returns the whole window (well
-# under MAX_LIMIT) and the in-script sort yields the *true* newest events —
-# Service::Events has no ordering, and to_a's DEFAULT_LIMIT of 100 would
-# otherwise hand back the oldest rows of a wide window.
-recent_iso  = 3.days.ago.to_date.iso8601
-
-demo_endpoints = [
-  {
-    slug: "page-views-last-7-days",
-    requirement: "Count all page_view events from the past 7 days",
-    script: <<~RUBY.strip
-      counts = Service::Metrics.daily_counts(since: "#{since_iso}", name: "page_view")
-      recent_dates = counts.keys.sort.last(7)
-      sum = 0
-      recent_dates.each { |date| sum += counts[date] }
-      sum
-    RUBY
-  },
-  {
-    slug: "recent-events",
-    requirement: "List the 5 most recent events with their names and timestamps",
-    script: <<~RUBY.strip
-      events = Service::Events.between("#{recent_iso}", "#{today_iso}").limit(1000).to_a
-      recent = events.sort_by { |e| e["occurred_at"] }.reverse.first(5)
-      recent.map { |e| { "name" => e["name"], "occurred_at" => e["occurred_at"] } }
-    RUBY
-  },
-  {
-    slug: "avg-events-per-day",
-    requirement: "Average number of events per day over the last 7 days",
-    script: <<~RUBY.strip
-      counts = Service::Metrics.daily_counts(since: "#{since_iso}")
-      last_7_days = counts.keys.sort.last(7)
-      if last_7_days.empty?
-        0.0
-      else
-        total_events = 0
-        last_7_days.each { |day| total_events += counts[day] }
-        total_events.to_f / last_7_days.size
-      end
-    RUBY
-  }
-]
-
-puts "Seeding demo endpoints..."
-demo_endpoints.each do |attrs|
-  endpoint = Endpoint.find_or_create_by!(slug: attrs[:slug]) do |e|
-    e.script = attrs[:script]
-    e.status = :active
-  end
-  GenerationRequest.find_or_create_by!(endpoint: endpoint) do |gr|
-    gr.requirement = attrs[:requirement]
-    gr.status = :succeeded
-  end
-end
-puts "Seeded #{Endpoint.count} demo endpoints."
+# Endpoints are intentionally NOT seeded. The whole point of the demo is the
+# operator generating an endpoint live on stage; pre-seeding working endpoints
+# would undercut that. A fresh setup starts with an empty Endpoints list and
+# only the event data above for generated scripts to query.
