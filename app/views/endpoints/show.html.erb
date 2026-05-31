@@ -40,9 +40,13 @@
         <span class="h-1.5 w-1.5 rounded-full bg-secondary" aria-hidden="true"></span>live
       </span>
     </div>
-    <div id="generation_log_<%= @generation_request.id %>" class="space-y-3">
-      <%# Messages are appended here live via Turbo Stream broadcasts (#13) %>
-    </div>
+    <%# The log div must render with NO inner whitespace so :empty matches
+        before any message streams in; the peer placeholder below shows while
+        it's empty and hides itself the moment the first entry is appended. %>
+    <div id="generation_log_<%= @generation_request.id %>" class="peer space-y-3"></div>
+    <p class="font-mono text-xs text-content-muted peer-[:not(:empty)]:hidden">
+      生成過程會即時顯示在這裡 — 每一次 LLM 改寫腳本、沙盒試跑與錯誤回饋。
+    </p>
   </section>
 
   <p>
