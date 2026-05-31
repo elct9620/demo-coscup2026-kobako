@@ -7,7 +7,7 @@
 %>
 <%= turbo_stream_from @generation_request %>
 
-<div class="mx-auto max-w-3xl space-y-8">
+<div class="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col space-y-8">
   <header>
     <h1 class="text-3xl font-bold tracking-tight text-content-strong">Generation status</h1>
     <p class="mt-2 font-mono text-xs text-content-muted">error-as-feedback loop · what you verify is what ships</p>
@@ -33,20 +33,26 @@
     in real time by Message#broadcast_message_to_generation_request as the agent
     runs.  Target id matches the target: kwarg in the broadcast callback.
   %>
-  <section class="space-y-3">
+  <section class="flex min-h-0 flex-1 flex-col gap-3">
     <div class="flex items-baseline justify-between border-b border-edge-default pb-2">
       <h2 class="text-sm font-semibold text-content-strong">Generation log</h2>
       <span class="inline-flex items-center gap-1.5 font-mono text-xs text-content-muted">
         <span class="h-1.5 w-1.5 rounded-full bg-secondary" aria-hidden="true"></span>live
       </span>
     </div>
-    <%# The log div must render with NO inner whitespace so :empty matches
-        before any message streams in; the peer placeholder below shows while
-        it's empty and hides itself the moment the first entry is appended. %>
-    <div id="generation_log_<%= @generation_request.id %>" class="peer space-y-3"></div>
-    <p class="font-mono text-xs text-content-muted peer-[:not(:empty)]:hidden">
-      生成過程會即時顯示在這裡 — 每一次 LLM 改寫腳本、沙盒試跑與錯誤回饋。
-    </p>
+    <%# Scroll viewport — fills the remaining viewport height (flex-1 + min-h-0)
+        and tails its own content, so it adapts to any projector resolution
+        without a guessed max-height. The generation-log controller keeps it
+        pinned to the newest entry as Turbo Streams append into the log target. %>
+    <div data-controller="generation-log" class="min-h-0 flex-1 overflow-y-auto">
+      <%# The log target must render with NO inner whitespace so :empty matches
+          before any message streams in; the peer placeholder below shows while
+          it's empty and hides itself the moment the first entry is appended. %>
+      <div id="generation_log_<%= @generation_request.id %>" class="peer space-y-3"></div>
+      <p class="font-mono text-xs text-content-muted peer-[:not(:empty)]:hidden">
+        生成過程會即時顯示在這裡 — 每一次 LLM 改寫腳本、沙盒試跑與錯誤回饋。
+      </p>
+    </div>
   </section>
 
   <p>

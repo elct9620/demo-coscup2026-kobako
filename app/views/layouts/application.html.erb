@@ -34,7 +34,12 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body class="min-h-screen bg-surface-base font-sans text-content-default antialiased">
+  <%# Flex column pinned to the viewport height (dvh adapts to any screen and to
+      mobile browser chrome). The header keeps its natural size and <main> flexes
+      to fill the rest. Pages that fill the height give an inner panel a definite
+      bound to scroll within (the generation log); pages that overflow (long
+      index lists) simply scroll the document as usual. %>
+  <body class="flex h-dvh flex-col bg-surface-base font-sans text-content-default antialiased">
     <header class="border-b border-edge-default bg-surface-raised">
       <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4">
         <%= link_to root_path, class: "group inline-flex items-baseline gap-2 no-underline" do %>
@@ -53,7 +58,7 @@
       </div>
     </header>
 
-    <main class="mx-auto max-w-5xl px-5 py-12 sm:py-16">
+    <main class="mx-auto flex w-full min-h-0 max-w-5xl flex-1 flex-col px-5 py-12 sm:py-16">
       <%= yield %>
     </main>
   </body>

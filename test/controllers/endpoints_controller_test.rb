@@ -186,4 +186,28 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
 
     assert_select "[id='generation_log_#{gr.id}']"
   end
+
+  # The log streams entries via Turbo Stream append. Its scroll viewport fills
+  # the remaining viewport height (flex-fill, not a fixed fraction) so it adapts
+  # to any projector resolution, and the generation-log Stimulus controller
+  # keeps it pinned to the newest entry. These guard that markup contract: the
+  # append target lives inside the controller-bound, height-filling scroll box.
+  test "GET /endpoints/:id nests the generation log inside the auto-scroll viewport" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+
+    get endpoint_path(gr)
+
+    assert_select "[data-controller='generation-log'] [id='generation_log_#{gr.id}']"
+  end
+
+  test "GET /endpoints/:id makes the log viewport fill the remaining height and scroll" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+
+    get endpoint_path(gr)
+
+    viewport = css_select("[data-controller='generation-log']").first
+    assert_includes viewport["class"], "flex-1"
+    assert_includes viewport["class"], "min-h-0"
+    assert_includes viewport["class"], "overflow-y-auto"
+  end
 end
