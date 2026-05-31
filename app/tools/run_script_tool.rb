@@ -46,19 +46,30 @@ class RunScriptTool < RubyLLM::Tool
   #   { success: false, error: String, error_type: String, details: Hash | nil }
   #
   # The failure shape gives the LLM:
-  #   - error_type   — distinguishes TimeoutError / SandboxError / etc.
+  #   - error_type   — distinguishes TimeoutError / SandboxError / SchemaError / etc.
   #   - error        — human-readable message for direct correction guidance
   #   - details      — mruby klass + backtrace_lines for precise diagnosis
+  #
+  # A script may run cleanly yet return a non-conforming shape (e.g. a bare
+  # scalar instead of the { "data" => ..., "meta" => {} } envelope).  Such a
+  # result is turned into a SchemaError so the LLM self-corrects in the same
+  # error-as-feedback loop it uses for runtime errors — the response contract is
+  # part of "correctness" for a generated endpoint.
   def execute(script:)
     outcome = @sandbox.call(script)
+    return sandbox_error(outcome[:error]) unless outcome[:ok]
 
-    if outcome[:ok]
-      { success: true, result: outcome[:result] }
-    else
-      err = outcome[:error]
-      result = { success: false, error: err[:message], error_type: err[:type] }
-      result[:details] = err[:details] if err[:details]
-      result
-    end
+    schema_error = ResponseSchema.validate(outcome[:result])
+    return { success: false, error: schema_error, error_type: "SchemaError" } if schema_error
+
+    { success: true, result: outcome[:result] }
+  end
+
+  private
+
+  def sandbox_error(err)
+    result = { success: false, error: err[:message], error_type: err[:type] }
+    result[:details] = err[:details] if err[:details]
+    result
   end
 end

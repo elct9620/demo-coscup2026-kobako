@@ -39,37 +39,71 @@ class RunScriptToolTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------------------------------
-  # Success path — LLM learns the script worked and sees the return value
+  # Success path — LLM learns the script worked and sees the return value.
+  # Scripts must return the standard { "data" => ..., "meta" => {} } envelope
+  # (enforced by ResponseSchema); see the guardrail section below.
   # ---------------------------------------------------------------------------
 
-  test "execute returns success hash when script evaluates successfully" do
-    result = @tool.execute(script: "1 + 1")
+  test "execute returns success hash when script returns a valid envelope" do
+    result = @tool.execute(script: '{ "data" => 1 + 1, "meta" => {} }')
 
-    assert_equal true,  result[:success]
-    assert_equal 2,     result[:result]
+    assert_equal true, result[:success]
+    assert_equal({ "data" => 2, "meta" => {} }, result[:result])
   end
 
-  test "execute exposes Service::Events.count to the LLM" do
-    result = @tool.execute(script: "Service::Events.count")
+  test "execute exposes Service::Events.count to the LLM inside the envelope" do
+    result = @tool.execute(script: '{ "data" => Service::Events.count, "meta" => {} }')
 
     assert result[:success]
-    assert_equal 0, result[:result]
+    assert_equal 0, result[:result]["data"]
   end
 
   test "execute returns a non-nil result for valid chained EventQuery" do
     Event.create!(occurred_at: Time.current, name: "page_view")
-    result = @tool.execute(script: 'Service::Events.by_name("page_view").count')
+    result = @tool.execute(script: '{ "data" => Service::Events.by_name("page_view").count, "meta" => {} }')
 
     assert result[:success]
-    assert_equal 1, result[:result]
+    assert_equal 1, result[:result]["data"]
   end
 
   test "execute returns success with MetricQuery result" do
     3.times { Event.create!(occurred_at: Time.current, name: "click") }
-    result = @tool.execute(script: "Service::Metrics.total_count")
+    result = @tool.execute(script: '{ "data" => Service::Metrics.total_count, "meta" => {} }')
 
     assert result[:success]
-    assert_equal 3, result[:result]
+    assert_equal 3, result[:result]["data"]
+  end
+
+  # ---------------------------------------------------------------------------
+  # Schema guardrail — a script that runs cleanly but returns a non-conforming
+  # shape is reported back as a SchemaError so the LLM self-corrects, exactly
+  # as it would for a runtime error (error-as-feedback).
+  # ---------------------------------------------------------------------------
+
+  test "execute returns SchemaError when a clean script returns a bare scalar" do
+    result = @tool.execute(script: "1 + 1")
+
+    assert_equal false, result[:success], "bare scalar must not pass the envelope guardrail"
+    assert_equal "SchemaError", result[:error_type]
+    assert result[:error].present?, "expected a fix-oriented schema error message for the LLM"
+  end
+
+  test "execute returns SchemaError when the envelope is missing the meta key" do
+    result = @tool.execute(script: '{ "data" => 1 }')
+
+    assert_equal false, result[:success]
+    assert_equal "SchemaError", result[:error_type]
+    assert_match(/meta/, result[:error])
+  end
+
+  test "execute accepts an envelope with a populated meta block" do
+    Event.create!(occurred_at: Time.current, name: "page_view")
+    script = '{ "data" => Service::Events.count, "meta" => { "event" => "page_view" } }'
+    result = @tool.execute(script: script)
+
+    assert result[:success]
+    assert_equal 1, result[:result]["data"]
+    assert_equal "page_view", result[:result]["meta"]["event"]
   end
 
   # ---------------------------------------------------------------------------
@@ -154,7 +188,7 @@ class RunScriptToolTest < ActiveSupport::TestCase
   # ---------------------------------------------------------------------------
 
   test "success result has :success true and :result key" do
-    result = @tool.execute(script: "42")
+    result = @tool.execute(script: '{ "data" => 42, "meta" => {} }')
     assert result.key?(:success)
     assert result[:success]
     assert result.key?(:result)
