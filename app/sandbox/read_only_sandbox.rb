@@ -3,8 +3,9 @@
 # Shared builder for the read-only Kobako sandbox.
 #
 # This is the canonical execution path for both:
-#   • Validation  — RunScriptTool (#6) calls #call(script) to trial-run
-#     LLM-generated mruby and feed structured errors back to the agent.
+#   • Validation  — InspectQueryTool / SubmitEndpointTool (via ScriptRunner)
+#     call #call(script) to trial-run LLM-generated mruby and feed structured
+#     errors back to the agent.
 #   • Replay      — EndpointReplay (#9) calls #call(script) to serve a
 #     live request with the stored endpoint script.
 #
@@ -19,8 +20,8 @@
 #      the network, or ENV.
 #
 #   2. Shared execution path:
-#      Both RunScriptTool and EndpointReplay instantiate ReadOnlySandbox and
-#      call #call(script).  Same code, same sandbox setup, same result.
+#      Both the agent's tools (via ScriptRunner) and EndpointReplay instantiate
+#      ReadOnlySandbox and call #call(script).  Same code, same setup, same result.
 #
 #   3. Fresh state per invocation:
 #      Each #call builds a brand-new Kobako::Sandbox so that no mrb_state,

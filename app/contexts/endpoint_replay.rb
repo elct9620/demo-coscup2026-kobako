@@ -15,8 +15,8 @@
 #
 # Invariants upheld (SPEC.md Consistency → Invariants):
 #   - 驗證即上線 (Shared execution path): this context uses the same
-#     ReadOnlySandbox builder as RunScriptTool.  The script the agent validated
-#     is executed via the identical code path on every live request.
+#     ReadOnlySandbox builder as SubmitEndpointTool.  The script the agent
+#     submitted is executed via the identical code path on every live request.
 #   - 每次調用全新狀態 (Fresh state per invocation): ReadOnlySandbox#call builds
 #     a brand-new Kobako::Sandbox on each call.  No mrb_state leaks between
 #     requests.

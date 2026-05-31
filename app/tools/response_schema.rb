@@ -5,18 +5,19 @@
 #
 #   { "data" => <wire-representable value>, "meta" => { ... } }
 #
-# RunScriptTool runs the LLM-generated script in ReadOnlySandbox, then passes the
-# return value through here.  A non-conforming shape is reported back to the LLM
-# as a SchemaError, so it self-corrects in the error-as-feedback loop — exactly
-# as it would for a runtime error.  This keeps every generated endpoint's
-# response self-describing (named "data" + a "meta" block) instead of a bare
-# scalar like 42 or "page_view".
+# SubmitEndpointTool runs the LLM-generated script in ReadOnlySandbox, then
+# passes the return value through here.  A non-conforming shape is reported back
+# to the LLM as a SchemaError, so it self-corrects in the error-as-feedback loop
+# — exactly as it would for a runtime error.  This keeps every generated
+# endpoint's response self-describing (named "data" + a "meta" block) instead of
+# a bare scalar like 42 or "page_view".  (inspect_query deliberately skips this
+# check so the agent can explore raw values.)
 #
-# Why here (next to RunScriptTool) and not in ReadOnlySandbox:
+# Why here (next to SubmitEndpointTool) and not in ReadOnlySandbox:
 #   The sandbox's responsibility is *safe execution* and returning a
 #   wire-representable value.  The response *shape* is a product-level generation
-#   contract, enforced at the validation surface — so this lives beside its sole
-#   consumer, RunScriptTool, not baked into the shared execution path.
+#   contract, enforced at the submission surface — so this lives beside its sole
+#   consumer, SubmitEndpointTool, not baked into the shared execution path.
 #   EndpointReplay therefore replays the already-conforming script without
 #   re-checking (the script is identical, so its shape is too).  This preserves
 #   the "驗證即上線" invariant.

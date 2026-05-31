@@ -11,7 +11,7 @@
 # Architecture (docs/architecture.md — DCI 三要素):
 #   - Data:        Endpoint (ActiveRecord, persisted here on success)
 #   - Context:     this class — thin use-case orchestrator, no business logic
-#   - Interaction: EndpointBuilderAgent drives RunScriptTool → ReadOnlySandbox
+#   - Interaction: EndpointBuilderAgent drives inspect_query / submit_endpoint → ReadOnlySandbox
 #
 # Invariants upheld (SPEC.md Consistency → Invariants):
 #   - 有限迭代: IterationLimitError from the agent is rescued here; the caller

@@ -9,8 +9,9 @@ require "test_helper"
 # WITHOUT hitting real LMStudio.  Real LLM integration is deferred to #14 E2E.
 #
 # What we verify here:
-#   1. Class structure — inherits RubyLLM::Agent, tools include RunScriptTool,
-#      instructions point to the prompt file, model is LMStudio-compatible.
+#   1. Class structure — inherits RubyLLM::Agent, binds inspect_query +
+#      submit_endpoint, instructions point to the prompt file, model is
+#      LMStudio-compatible.
 #   2. Iteration cap — before_tool_call counter raises IterationLimitError at
 #      MAX_ITERATIONS + 1 call, not before.
 #

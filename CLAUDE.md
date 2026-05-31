@@ -44,14 +44,14 @@ LLM 生成功能需要本機 **LMStudio 在 `http://localhost:1234/v1` 運行**�
 
 兩條主流程共用同一個 `ReadOnlySandbox` builder：
 
-1. **生成**：`EndpointGenerationJob` → `EndpointGeneration` → `EndpointBuilderAgent`（RubyLLM）寫腳本 → `RunScriptTool` 在沙盒試跑 → 結構化錯誤回饋給 LLM 重試 → 成功則建立 `Endpoint`。
+1. **生成**：`EndpointGenerationJob` → `EndpointGeneration` → `EndpointBuilderAgent`（RubyLLM）寫腳本 → 以 `inspect_query` 探索資料、`submit_endpoint` 提交最終腳本 → 結構化錯誤回饋給 LLM 重試 → `submit_endpoint` 通過後讀 `submit_tool.captured_script` 建立 `Endpoint`。
 2. **重放**：`GET /e/:slug` → `DynamicEndpointsController` → `EndpointReplay` → 以全新沙盒重放上線腳本。
 
 ### 三個核心不變式（修改時別繞過）
 
 - **兩層唯讀防禦**：(1) 能力邊界——沙盒只綁 `EventQuery`/`MetricQuery`，無寫入入口；(2) SQL 邊界——查詢走 `reading` 連線，以 SQLite `mode=ro` 開檔，寫入在連線層即被拒。兩層獨立成立。
-- **驗證即上線（shared execution path）**：`RunScriptTool`（驗證）與 `EndpointReplay`（服務）共用同一個 `ReadOnlySandbox`——同一條執行路徑，保證「驗證時所見＝上線後結果」。
-- **error-as-feedback 自我驗證迴圈**：以 RubyLLM Agent + 單一 `RunScriptTool` 的原生 tool-calling 迴圈實現；沙盒結構化錯誤作為 tool result 餵回，`before_tool_call` 計數封頂達成有限迭代。
+- **驗證即上線（shared execution path）**：`submit_endpoint`（驗證）與 `EndpointReplay`（服務）共用同一個 `ReadOnlySandbox`——同一條執行路徑；只有 `submit_endpoint` 捕獲的腳本會被持久化，保證「驗證時所見＝上線後結果」。
+- **error-as-feedback 自我驗證迴圈（雙工具）**：以 RubyLLM Agent + `inspect_query`（探索、不驗 envelope）+ `submit_endpoint`（驗 envelope + 捕獲）的原生 tool-calling 迴圈實現；兩工具結構化錯誤作為 tool result 餵回，`before_tool_call` 對兩工具計數封頂達成有限迭代。
 
 ## 關鍵慣例與注意事項
 

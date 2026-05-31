@@ -10,7 +10,7 @@ require "test_helper"
 #   2. Error isolation — sandbox errors return structured error, never raise.
 #   3. Invalid params — non-string keys/values return structured error, no DB access.
 #   4. Fresh state — each replay uses a new sandbox; no state leaks between calls.
-#   5. Shared execution path — EndpointReplay uses the same ReadOnlySandbox as RunScriptTool.
+#   5. Shared execution path — EndpointReplay uses the same ReadOnlySandbox as submit_endpoint.
 #
 # Interface under test:
 #   EndpointReplay.new(endpoint, params).call
@@ -188,11 +188,11 @@ class EndpointReplayTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------------------------------
-  # Shared execution path — same ReadOnlySandbox as RunScriptTool (invariant)
+  # Shared execution path — same ReadOnlySandbox as submit_endpoint (invariant)
   # ---------------------------------------------------------------------------
 
-  test "replay of a RunScriptTool-validated script produces the same result" do
-    # Simulate what RunScriptTool does: run the same script through ReadOnlySandbox.
+  test "replay of a submit_endpoint-validated script produces the same result" do
+    # Simulate what submit_endpoint does: run the same script through ReadOnlySandbox.
     script   = "Service::Events.count"
     endpoint = Endpoint.create!(script: script)
 

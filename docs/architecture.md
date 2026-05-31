@@ -25,9 +25,12 @@ app/
 │   └── chat.rb / message.rb / tool_call.rb / model.rb   # ruby_llm:install 生成（生成歷史與可視化來源）
 │
 ├── agents/
-│   └── endpoint_builder_agent.rb   # RubyLLM::Agent：model→LMStudio、instructions、tools RunScriptTool
+│   └── endpoint_builder_agent.rb   # RubyLLM::Agent：model→LMStudio、instructions、tools inspect_query + submit_endpoint
 ├── tools/
-│   └── run_script_tool.rb          # RubyLLM::Tool：execute(script:) → 唯讀沙盒試跑，回傳 result/error
+│   ├── script_runner.rb            # PORO：唯讀沙盒試跑 → LLM tool-result hash（兩工具共用）
+│   ├── inspect_query_tool.rb       # RubyLLM::Tool：探索用，回傳原始值，不驗 envelope
+│   ├── submit_endpoint_tool.rb     # RubyLLM::Tool：最終腳本，驗 envelope + 捕獲（captured_script）
+│   └── response_schema.rb          # 回傳 envelope 護欄（僅 submit_endpoint 使用）
 ├── prompts/
 │   └── endpoint_builder_agent/instructions.txt.erb   # Agent 系統提示（prompt 檔慣例）
 │
@@ -59,11 +62,12 @@ app/
   → EndpointGenerationJob (SolidQueue)
     → EndpointGeneration context
       → EndpointBuilderAgent 寫 mruby 腳本
-        → RunScriptTool.execute(script:)
+        → inspect_query.execute(script:)  # 探索：回傳原始值、不驗 envelope
+        → submit_endpoint.execute(script:) # 提交：驗 envelope，成功則捕獲 script
           → ReadOnlySandbox 試跑（綁定 EventQuery/MetricQuery、唯讀連線）
           → 回傳 result 或結構化 error（error-as-feedback）
-        ← Agent 據結果修正並重試（before_tool_call 計數封頂 = 有限迭代）
-      → 試跑成功且回傳值可經 MessagePack 序列化（不可序列化值在 wire 邊界即視為 error，回饋 LLM）→ 建立 Endpoint(slug, script)
+        ← Agent 據結果修正並重試（before_tool_call 計數封頂 = 有限迭代，含兩工具）
+      → submit_endpoint 通過並捕獲腳本（回傳值可經 MessagePack 序列化；不可序列化值在 wire 邊界即視為 error 回饋 LLM）→ 讀 submit_tool.captured_script 建立 Endpoint(slug, script)
   → 每一輪 ToolCall/Message 經 broadcasts_to Turbo Stream 即時呈現
 ```
 
@@ -77,14 +81,14 @@ GET /e/:slug?params...
       → 回傳 JSON 或結構化錯誤
 ```
 
-`RunScriptTool`（驗證）與 `EndpointReplay`（服務）共用同一個 `ReadOnlySandbox` builder——**同一條執行路徑**，滿足 SPEC「驗證即上線」不變式。
+`submit_endpoint`（驗證）與 `EndpointReplay`（服務）共用同一個 `ReadOnlySandbox` builder——**同一條執行路徑**，滿足 SPEC「驗證即上線」不變式；且只有 `submit_endpoint` 捕獲（試跑＋envelope 通過）的腳本會被持久化。
 
 ## Tech Stack
 
 | 技術 | gem / 版本 | 所在層 | 用法重點 |
 |------|-----------|--------|----------|
 | **Kobako** | `kobako` ~> 0.6.1 | sandbox / Interaction | mruby-in-WASM 沙盒。`Kobako::Sandbox.new(timeout:, memory_limit:)`；`#define(:NS).bind(:Member, obj)` 綁定唯讀 Service；`#run(target, *args, **kwargs)` / `#eval`；非 wire 型別自動轉 `Handle` 代理供鏈式呼叫（限單次調用）；MessagePack 為唯一 wire codec；guest 與宿主隔離（無 require/網路/檔案/ENV）為 Kobako 設計保證，唯讀則由兩層防禦達成（見下）；每次調用以全新 mrb_state 執行、per-invocation 狀態重置，Service 綁定於首次調用後封存。 |
-| **RubyLLM** | `ruby_llm` ~> 1.15 | agents / tools | `EndpointBuilderAgent < RubyLLM::Agent`（macros：`model`、`instructions`、`tools`）；`RunScriptTool < RubyLLM::Tool`（`desc` + `execute`）；指令置於 `app/prompts/`；串流委派 `complete`/`each`。 |
+| **RubyLLM** | `ruby_llm` ~> 1.15 | agents / tools | `EndpointBuilderAgent < RubyLLM::Agent`（macros：`model`、`instructions`、`tools`）；兩個 `RubyLLM::Tool`（`desc` + `execute`）：`InspectQueryTool`、`SubmitEndpointTool`，後者以實例註冊（`with_tool`）供讀回 `captured_script`；指令置於 `app/prompts/`；串流委派 `complete`/`each`。 |
 | **LMStudio** | （外部，OpenAI 相容） | — | 預設 `http://localhost:1234/v1`；`config.openai_use_system_role = true`；Agent 用 `model "<id>", provider: :openai, assume_model_exists: true`。 |
 | **Hotwire** | `turbo-rails`、`stimulus-rails` | 框架支援 | 生成 UI 與表單互動。 |
 | **TailwindCSS** | v4 | 框架支援 | 視覺樣式。 |
@@ -157,22 +161,22 @@ production:
 
 ### 驗證即上線（Shared execution path）
 - **When to apply**：腳本同時用於生成驗證與對外服務。
-- **Shape**：驗證（`RunScriptTool`）與服務（`EndpointReplay`）共用同一個 `ReadOnlySandbox` builder。
-- **Canonical example**：`app/sandbox/read_only_sandbox.rb`。
-- **Forces this resolves**：一致性——驗證時看到的結果等同上線後結果。
+- **Shape**：驗證（`SubmitEndpointTool`）與服務（`EndpointReplay`）共用同一個 `ReadOnlySandbox` builder；持久化的腳本是 `submit_endpoint` 捕獲（試跑＋envelope 通過）的那一份，由 `EndpointGeneration` 讀 `submit_tool.captured_script` 取得，而非掃對話歷史。
+- **Canonical example**：`app/sandbox/read_only_sandbox.rb`、`app/tools/submit_endpoint_tool.rb`。
+- **Forces this resolves**：一致性——驗證時看到的結果等同上線後結果；探索（`inspect_query`）的裸值絕不會被誤當成上線腳本。
 - **Revisit if**：驗證與服務需要不同的資源限制或綁定。
 
-### error-as-feedback 自我驗證迴圈
-- **When to apply**：讓 LLM 自我修正生成的腳本。
-- **Shape**：以 Agent + 單一 `RunScriptTool` 的原生 tool-calling 迴圈實現；沙盒結構化錯誤作為 tool result 餵回，`before_tool_call` 計數封頂達成有限迭代。沙盒執行錯誤與 schema 違規皆走同一條回饋通道（見下方「response envelope 護欄」）。
-- **Canonical example**：`app/agents/endpoint_builder_agent.rb`、`app/tools/run_script_tool.rb`。
-- **Forces this resolves**：Rule complexity（自我驗證編排）；避免重造 LLM orchestration。
-- **Revisit if**：需要多代理協作，或迴圈需跨多個工具。
+### error-as-feedback 自我驗證迴圈（雙工具：探索 + 提交）
+- **When to apply**：讓 LLM 自我修正生成的腳本，且在收斂前需要自由探索資料。
+- **Shape**：以 Agent + 兩個工具的原生 tool-calling 迴圈實現——`inspect_query`（探索：回傳原始值、不驗 envelope，用來排除資料問題）與 `submit_endpoint`（提交：驗 envelope，成功則捕獲最終腳本）。兩工具的沙盒/schema 結構化錯誤皆作為 tool result 餵回；`before_tool_call` 對**兩工具**計數封頂達成有限迭代（`MAX_ITERATIONS = 15`）。「哪一份是最終版本」由 `submit_endpoint` 捕獲的 `captured_script` 機械式決定（最後一次通過者勝出），非掃歷史。
+- **Canonical example**：`app/agents/endpoint_builder_agent.rb`、`app/tools/inspect_query_tool.rb`、`app/tools/submit_endpoint_tool.rb`、`app/tools/script_runner.rb`。
+- **Forces this resolves**：Rule complexity（自我驗證編排）；Flexibility（探索與最終契約解耦，能設計更廣的端點腳本）；避免重造 LLM orchestration。
+- **Revisit if**：需要多代理協作，或工具數再增長到需要顯式狀態機編排。
 
 ### response envelope 護欄（Response-envelope guardrail）
 - **When to apply**：生成的端點回傳值需符合一致的對外契約，而非任由 LLM 回裸標量。
-- **Shape**：標準回傳形狀為 `{ "data" => <值>, "meta" => {...} }`。`RunScriptTool` 在沙盒成功執行後，將回傳值過 `ResponseSchema.validate`；不合規則以 `error_type: "SchemaError"` 經 error-as-feedback 通道餵回，LLM 自我修正。schema 是 **生成期（gen-time）契約**，刻意不放進共用的 `ReadOnlySandbox`，故 `EndpointReplay` 上線時不重驗（腳本相同→形狀相同）。`ResponseSchema` 與唯一消費者 `RunScriptTool` 同處 `app/tools/`，nil-on-success（同 `ReadOnlySandbox#validate_params`）。
-- **Canonical example**：`app/tools/response_schema.rb`、`app/tools/run_script_tool.rb`、`app/prompts/endpoint_builder_agent/instructions.txt.erb`。
+- **Shape**：標準回傳形狀為 `{ "data" => <值>, "meta" => {...} }`。僅 **`submit_endpoint`**（提交路徑）在沙盒成功執行後，將回傳值過 `ResponseSchema.validate`；不合規則以 `error_type: "SchemaError"` 經 error-as-feedback 通道餵回，LLM 自我修正。`inspect_query`（探索路徑）刻意不驗 envelope，讓 Agent 能看到原始值。schema 是 **生成期（gen-time）契約**，刻意不放進共用的 `ReadOnlySandbox`，故 `EndpointReplay` 上線時不重驗（腳本相同→形狀相同）。`ResponseSchema` 與其消費者 `SubmitEndpointTool` 同處 `app/tools/`，nil-on-success（同 `ReadOnlySandbox#validate_params`）。
+- **Canonical example**：`app/tools/response_schema.rb`、`app/tools/submit_endpoint_tool.rb`、`app/prompts/endpoint_builder_agent/instructions.txt.erb`。
 - **Forces this resolves**：Consistency（對外 API 形狀一致、自我描述）；Rule complexity（用既有自我驗證迴圈承載契約，不另造校驗層）。
 - **Revisit if**：需在上線時也強制 schema（例如輸出形狀隨資料分支而變，gen-time 單次試跑驗不到，serve time 仍可能吐裸值）；或契約需版本化／envelope 需更豐富的 `meta` 標準欄位。
 

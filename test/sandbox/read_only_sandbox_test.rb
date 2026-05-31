@@ -10,7 +10,7 @@ require "test_helper"
 #   1. Capability boundary — scripts can only reach EventQuery / MetricQuery;
 #      no write path is exposed.
 #   2. Shared execution path — the same builder is used for both validation
-#      (RunScriptTool) and replay (EndpointReplay).
+#      (submit_endpoint) and replay (EndpointReplay).
 #   3. Fresh state per invocation — each call() builds a new Kobako::Sandbox
 #      so no state leaks across calls.
 #

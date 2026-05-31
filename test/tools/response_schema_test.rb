@@ -9,8 +9,8 @@ require "test_helper"
 #
 # Contract under test (mirrors ReadOnlySandbox#validate_params):
 #   #validate returns nil when the value conforms, or a single human-readable
-#   error String when it does not.  RunScriptTool feeds that String back to the
-#   LLM as a SchemaError so it self-corrects in the error-as-feedback loop.
+#   error String when it does not.  SubmitEndpointTool feeds that String back to
+#   the LLM as a SchemaError so it self-corrects in the error-as-feedback loop.
 class ResponseSchemaTest < ActiveSupport::TestCase
   # ---------------------------------------------------------------------------
   # Conforming envelopes — #validate returns nil
