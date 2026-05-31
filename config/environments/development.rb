@@ -40,6 +40,12 @@ Rails.application.configure do
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
+  # Set the host for absolute URLs (e.g. dynamic_endpoint_url) rendered outside
+  # an HTTP request — Turbo Stream broadcasts render via ActionController::Renderer,
+  # whose default host is "example.org".  Without this, broadcast endpoint URLs
+  # would point at example.org instead of the running dev server.
+  config.action_controller.default_url_options = { host: "localhost", port: 3000 }
+
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
 

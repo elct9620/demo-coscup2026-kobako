@@ -39,6 +39,10 @@ Rails.application.configure do
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "example.com" }
 
+  # Set the host for absolute URLs rendered outside an HTTP request (e.g. Turbo
+  # Stream broadcasts via ActionController::Renderer, whose default is "example.org").
+  config.action_controller.default_url_options = { host: "example.com" }
+
   # Print deprecation notices to the stderr.
   config.active_support.deprecation = :stderr
 
