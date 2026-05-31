@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-31",
+  "title": "Design System: Dynamic Read-Only API Generator",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Kon Navy 紺", "canonical": "#0f2540", "tonalRamp": ["#070f1c", "#0b1a2f", "#0f2540", "#1c3a5e", "#2f5a87", "#5683ac", "#8bb0cf", "#c7daea"] },
+      "secondary": { "role": "secondary", "displayName": "GunJyo Blue 群青", "canonical": "#51a8dd", "tonalRamp": ["#11354c", "#1c5478", "#2a78a6", "#3a96cb", "#51a8dd", "#7cc0e8", "#a9d7f1", "#d6ecf9"] },
+      "success": { "role": "tertiary", "displayName": "Wakatake Green 若竹", "canonical": "#68be8d", "tonalRamp": ["#173c2a", "#225b40", "#2f7c57", "#449d70", "#68be8d", "#8fd2ab", "#b6e3c9", "#ddf3e7"] },
+      "warning": { "role": "tertiary", "displayName": "Tamago Amber 玉子", "canonical": "#f9bf45", "tonalRamp": ["#5a4106", "#86610f", "#b3831b", "#dca42c", "#f9bf45", "#fbd079", "#fce1a8", "#fef2d7"] },
+      "danger": { "role": "tertiary", "displayName": "JinZamOmi Coral 珊瑚", "canonical": "#eb7a77", "tonalRamp": ["#5c1f1d", "#86302d", "#b14440", "#d65d59", "#eb7a77", "#f29e9c", "#f7c1c0", "#fce3e2"] },
+      "surface-base": { "role": "neutral", "displayName": "Cool Paper", "canonical": "#f7fafe", "tonalRamp": ["#14161a", "#24272b", "#393d43", "#696f77", "#9a9fa5", "#c3c8cd", "#dce0e5", "#f7fafe"] },
+      "content-default": { "role": "neutral", "displayName": "Ink", "canonical": "#393d43", "tonalRamp": ["#14161a", "#24272b", "#393d43", "#51565c", "#696f77", "#9a9fa5", "#c3c8cd", "#f1f4f8"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "頁面主標題；Jost 幾何字大字重、銳利。" },
+      "headline": { "displayName": "Headline", "purpose": "區段標題。" },
+      "title": { "displayName": "Title", "purpose": "卡片／面板標題、小節標。" },
+      "body": { "displayName": "Body", "purpose": "內文與需求描述；上限 65–75ch。" },
+      "label": { "displayName": "Label", "purpose": "按鈕、欄位標籤、狀態標籤；句式大小寫。" },
+      "code": { "displayName": "Code", "purpose": "Generation Log、生成腳本、端點 URL；JetBrains Mono。" }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-out-expo", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "進場與揭露的主緩動——快出、無彈跳。串流 Log 進場用此。" },
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "狀態切換、hover/active 的預設緩動。" },
+      { "name": "duration-fast", "value": "120ms", "purpose": "hover/focus 等即時回饋。" },
+      { "name": "duration-base", "value": "200ms", "purpose": "一般狀態轉場（按鈕、邊框、狀態徽章）。" },
+      { "name": "duration-reveal", "value": "320ms", "purpose": "Log 進場、面板揭露。" },
+      { "name": "stagger-step", "value": "60ms", "purpose": "串流 Log 逐則進場的間隔；唯一被允許的編排式動態。" }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "主要動作（生成、提交）。Kon Navy 銳角實心鈕。",
+      "html": "<button class=\"ds-btn-primary\">Generate Endpoint</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--color-primary, #0f2540); color: var(--color-content-inverse, #fff); font-family: Jost, 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; line-height: 1.375; padding: 0.75rem 1.25rem; border: none; border-radius: 0; cursor: pointer; transition: background 160ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: oklch(from var(--color-primary, #0f2540) calc(l + 0.04) c h); } .ds-btn-primary:active { background: oklch(from var(--color-primary, #0f2540) calc(l + 0.07) c h); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-secondary, #51a8dd); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "次要動作。白底、navy 文字、1px 邊框、銳角。",
+      "html": "<button class=\"ds-btn-secondary\">Try again</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--color-surface-raised, #fff); color: var(--color-primary, #0f2540); font-family: Jost, 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; line-height: 1.375; padding: 0.75rem 1.25rem; border: 1px solid var(--color-edge-default, #dce0e5); border-radius: 0; cursor: pointer; transition: background 160ms cubic-bezier(0.4,0,0.2,1), border-color 160ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-secondary:hover { background: var(--color-surface-sunken, #f1f4f8); border-color: var(--color-edge-strong, #c3c8cd); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--color-secondary, #51a8dd); outline-offset: 2px; }"
+    },
+    {
+      "name": "Field (Textarea)",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "自然語言需求輸入。白底、1px 邊框、銳角；focus 切 2px 群青邊框，無 glow。",
+      "html": "<textarea class=\"ds-field\" rows=\"3\" placeholder=\"e.g. Count all page_view events from the past 7 days\"></textarea>",
+      "css": ".ds-field { display: block; width: 100%; background: var(--color-surface-raised, #fff); color: var(--color-content-default, #393d43); font-family: Jost, 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif; font-size: 1rem; line-height: 1.5; padding: 0.625rem 0.75rem; border: 1px solid var(--color-edge-default, #dce0e5); border-radius: 0; transition: border-color 160ms cubic-bezier(0.4,0,0.2,1); } .ds-field::placeholder { color: var(--color-content-muted, #696f77); } .ds-field:focus { outline: none; border: 2px solid var(--color-secondary, #51a8dd); }"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "卡片／面板。白底浮在冷白紙上、1px 邊框、銳角、無陰影。",
+      "html": "<div class=\"ds-panel\"><p class=\"ds-panel-label\">Requirement</p><p>Count all page_view events from the past 7 days</p></div>",
+      "css": ".ds-panel { background: var(--color-surface-raised, #fff); color: var(--color-content-default, #393d43); border: 1px solid var(--color-edge-default, #dce0e5); border-radius: 0; padding: 1rem; font-family: Jost, 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif; } .ds-panel-label { font-size: 0.875rem; font-weight: 500; color: var(--color-content-muted, #696f77); margin: 0 0 0.25rem; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "status-badge",
+      "description": "三態狀態徽章：顏色＋圖示＋文字三信號。此例為 pending（生成中，Tamago 玉子 + 旋轉指示器）。",
+      "html": "<span class=\"ds-status ds-status--pending\"><span class=\"ds-status-spin\" aria-hidden=\"true\"></span><span>Generating endpoint…</span></span>",
+      "css": ".ds-status { display: inline-flex; align-items: center; gap: 0.5rem; font-family: Jost, 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; padding: 0.5rem 0.75rem; border: 1px solid; border-radius: 0; } .ds-status--pending { background: color-mix(in oklch, var(--color-warning, #f9bf45) 16%, #fff); border-color: color-mix(in oklch, var(--color-warning, #f9bf45) 45%, #fff); color: #86610f; } .ds-status-spin { width: 0.875rem; height: 0.875rem; border: 2px solid color-mix(in oklch, var(--color-warning, #f9bf45) 55%, #fff); border-top-color: #b3831b; border-radius: 50%; animation: ds-spin 0.7s linear infinite; } @keyframes ds-spin { to { transform: rotate(360deg); } } @media (prefers-reduced-motion: reduce) { .ds-status-spin { animation: none; } }"
+    },
+    {
+      "name": "Generation Log Entry",
+      "kind": "custom",
+      "refersTo": "log-entry",
+      "description": "Signature。串流進來的單則 LLM 訊息／tool call。JetBrains Mono、銳角、role 標籤、進場以 translateY+fade ease-out-expo。",
+      "html": "<div class=\"ds-log-entry\"><p class=\"ds-log-role\">assistant</p><pre class=\"ds-log-body\">def call(events)\n  events.where(name: \"page_view\").count\nend</pre></div>",
+      "css": ".ds-log-entry { background: var(--color-surface-raised, #fff); border: 1px solid var(--color-edge-default, #dce0e5); border-radius: 0; padding: 0.75rem; animation: ds-log-in 320ms cubic-bezier(0.16,1,0.3,1) both; } @keyframes ds-log-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } } .ds-log-role { font-family: Jost, 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; color: var(--color-content-muted, #696f77); text-transform: capitalize; margin: 0 0 0.375rem; } .ds-log-body { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.875rem; line-height: 1.625; color: var(--color-content-default, #393d43); white-space: pre-wrap; word-break: break-word; margin: 0; } @media (prefers-reduced-motion: reduce) { .ds-log-entry { animation: none; } }"
+    },
+    {
+      "name": "Endpoint URL Chip",
+      "kind": "custom",
+      "refersTo": "endpoint-url",
+      "description": "生成成功後的端點 URL；JetBrains Mono、凹陷底、銳角、群青連結色、可選取。",
+      "html": "<a class=\"ds-code-link\" href=\"#\">/e/page-views-last-7-days</a>",
+      "css": ".ds-code-link { display: inline-block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.875rem; color: var(--color-secondary, #51a8dd); background: var(--color-surface-sunken, #f1f4f8); padding: 0.375rem 0.5rem; border-radius: 0; text-decoration: none; word-break: break-all; } .ds-code-link:hover { text-decoration: underline; } .ds-code-link:focus-visible { outline: 2px solid var(--color-secondary, #51a8dd); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "和式實驗筆記 — The Lab Notebook",
+    "overview": "這是一本工程師的實驗筆記攤在冷白紙上：自然語言進來，本地 LLM 在沙盒裡反覆書寫、試跑、被結構化錯誤糾正、收斂成一支可上線的唯讀腳本，而整個過程像鋼筆在方格紙上留下的痕跡，毫不遮掩地寫在頁面上讓人看見。墨水用的是日本傳統色：Kon 紺的深藍是主筆，GunJyo 群青是補注，Wakatake 若竹、Tamago 玉子、JinZamOmi 珊瑚則標記成功、警示與失敗。沒有圓角、沒有陰影、沒有漸層——一切都是銳利的版面與精準的套印。筆記的可信來自誠實：頁面上看到的腳本，就是上線後重放的腳本；驗證時所見，即上線後結果。",
+    "keyCharacteristics": [
+      "銳角即品牌：所有元件 border-radius: 0，零圓角是設計語言而非疏漏。",
+      "冷白紙上的傳統色墨：日本傳統色作為精準的語意墨水，而非裝飾。",
+      "扁平、靠分層與邊框造深度：完全不用 shadow，用 surface 三層 + 1px/2px 邊框。",
+      "mono 是操作層：JetBrains Mono 承載 Generation Log 與腳本——demo 的主角。",
+      "過程可見：串流的生成 Log 是主舞台，不是附屬資訊。",
+      "投影幕優先：高對比、大字級、克制而精準的動態。"
+    ],
+    "rules": [
+      { "name": "The One Ink Rule", "body": "任一畫面只讓一支墨當主筆（多半是 Kon 紺）。群青與三支狀態色是補注，不爭主角；狀態色只在對應狀態出現，不拿來裝飾。", "section": "colors" },
+      { "name": "The Projector Floor Rule", "body": "content-subtle (#9a9fa5, 2.6:1) 只能用在 placeholder 與 disabled。任何要被讀的文字一律 content-muted 或更深。", "section": "colors" },
+      { "name": "The Mono-Is-Machine Rule", "body": "凡是機器產物——LLM 訊息、tool call、生成腳本、沙盒錯誤、端點 URL——一律 JetBrains Mono；人寫的描述與介面文案用 Jost。", "section": "typography" },
+      { "name": "The No-Caps-Sentence Rule", "body": "全大寫只用於 ≤4 字的標籤或徽章。禁止全大寫內文，禁止每個區段上方的 tracked uppercase eyebrow。", "section": "typography" },
+      { "name": "The Flat Paper Rule", "body": "表面靜止時一律扁平、無陰影。深度只靠 surface 分層與 1px 邊框；浮層用 surface-overlay + 1px 邊框界定。", "section": "elevation" },
+      { "name": "The Ruled-Line Border Rule", "body": "邊框是結構線，恆為完整四邊或單純分隔線。禁止 >1px 的 border-left/right 彩色側邊條。", "section": "elevation" }
+    ],
+    "dos": [
+      "Do 所有元件用銳角 border-radius: 0——這是 0-radius 品牌語言。",
+      "Do 維持扁平：深度靠 surface 分層 + 1px/2px 邊框，不用任何 box-shadow。",
+      "Do 讓 Kon Navy 當每個畫面唯一的主筆；狀態色只在對應狀態出現。",
+      "Do 所有機器產物一律 JetBrains Mono。",
+      "Do 內文用 content-default 或更深；placeholder 用 content-muted，投影幕讀得到。",
+      "Do 狀態同時給顏色＋圖示＋文字三信號。",
+      "Do 動態用 ease-out 指數曲線、無彈跳；串流 Log 的逐則 stagger 進場是唯一被允許的編排。",
+      "Do 每個動畫都附 prefers-reduced-motion: reduce 的淡入或瞬切替代。"
+    ],
+    "donts": [
+      "Don't 用通用預設 Tailwind 的樣子——indigo-600 按鈕、灰階文字、rounded-md、白底細邊框卡片。目前這套 UI 就是反例。",
+      "Don't 產出一看就知是 AI 生成的模板化畫面（eyebrow kicker、01/02/03 編號區段、相同尺寸 icon 卡片網格、hero-metric 模板）。",
+      "Don't 走賣相 SaaS landing：漸層大標、background-clip: text 漸層字、行銷買詞。",
+      "Don't 過度炫技動畫：彈跳／彈簧緩動、滿天玻璃擬態、為動而動。",
+      "Don't 用圓角、用陰影、用 >1px 的彩色側邊條。",
+      "Don't 把 content-subtle (#9a9fa5, 2.6:1) 用在任何要被讀的文字。",
+      "Don't 用顏色單獨表達狀態。",
+      "Don't 全大寫內文，或在每個區段上方放 tracked uppercase eyebrow。"
+    ]
+  }
+}

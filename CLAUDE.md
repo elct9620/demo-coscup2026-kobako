@@ -61,3 +61,14 @@ LLM 生成功能需要本機 **LMStudio 在 `http://localhost:1234/v1` 運行**�
 - **資料庫**：dev/test 為單一 SQLite；多資料庫（`cache`/`queue`/`cable` 各自獨立 SQLite）只在 production。`solid_*` 在 dev 走 memory/async。
 - **`bin/dev` 的 tailwind watch 用 `tailwindcss:watch[always]`**（`--watch=always`），使其在無 TTY 環境也常駐，避免 foreman「一退全收」。
 - **資產管線**：Propshaft + importmap（無 Node/package.json）；Tailwind v4 經 standalone CLI 編譯到 `app/assets/builds/`，layout 以 Rails 8.1 的 `stylesheet_link_tag :app` 自動含括。
+
+## Design Context
+
+前端設計工作由 impeccable skill 管理，策略基準寫在根目錄 **[`PRODUCT.md`](PRODUCT.md)**，動手做前端前先讀它。要點：
+
+- **Register**：`product`（工具型 app UI），主要展示情境是 **COSCUP 舞台投影 Demo**。
+- **核心印象**：流暢、有點魔法 → 視覺語言走「亮色編輯風 + 精準動態」。
+- **設計原則**：過程即主角（即時串流的 Generation Log 是主舞台）、Show don't tell（三個唯讀不變式要被看見）、投影幕優先（高對比大字級）、克制的精準（動態服務理解、無炫技）、工程的真誠。
+- **Anti-references**：通用預設 Tailwind（目前 indigo/灰階/白底細邊框就是反例）、AI 生成感、賣相 SaaS landing、過度炫技動畫。
+
+視覺系統（色彩、字體、components）寫在 `DESIGN.md`（建立後）；視覺決策以 DESIGN.md 為準，策略／語氣決策以 PRODUCT.md 為準。
