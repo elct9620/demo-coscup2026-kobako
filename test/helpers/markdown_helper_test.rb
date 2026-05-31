@@ -35,4 +35,17 @@ class MarkdownHelperTest < ActionView::TestCase
     assert_equal "", render_markdown("")
     assert_equal "", render_markdown(nil)
   end
+
+  test "highlight_code wraps a standalone script in the shared code-block markup" do
+    html = highlight_code("Event.count")
+
+    assert_includes html, '<pre class="code-block">'
+    assert_match(/<span class="[a-z]+">/, html) # Rouge tokenised the script
+    assert_match(/Event/, html)
+  end
+
+  test "highlight_code renders nothing for blank input" do
+    assert_equal "", highlight_code("")
+    assert_equal "", highlight_code(nil)
+  end
 end

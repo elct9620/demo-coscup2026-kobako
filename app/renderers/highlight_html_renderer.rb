@@ -12,16 +12,18 @@
 # Everything else (prose, lists, links) falls through to the stock HTML renderer,
 # whose escape_html option neutralises raw HTML in the LLM-authored source.
 class HighlightHtmlRenderer < Redcarpet::Render::HTML
-  def block_code(code, language)
+  # Highlight +code+ as +language+ into a code-block <pre>.  Shared by Markdown
+  # fenced blocks (#block_code) and any standalone code on the page — e.g. the
+  # generated endpoint script (MarkdownHelper#highlight_code) — so both render
+  # identically through Rouge's class-based markup.
+  def self.highlight(code, language)
     lexer = Rouge::Lexer.find(language.to_s) || Rouge::Lexers::PlainText
-    inner = formatter.format(lexer.lex(code))
+    inner = Rouge::Formatters::HTML.new.format(lexer.lex(code.to_s))
 
     %(<pre class="code-block"><code class="highlight">#{inner}</code></pre>)
   end
 
-  private
-
-  def formatter
-    @formatter ||= Rouge::Formatters::HTML.new
+  def block_code(code, language)
+    self.class.highlight(code, language)
   end
 end

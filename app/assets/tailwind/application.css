@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./tokens.css";
+@import "./rouge-github.css";
 
 /*
  * Don't scan the .claude/ tooling for class names. The impeccable skill's
@@ -116,87 +117,27 @@
   border: var(--border-width-hairline) solid var(--color-edge-subtle);
   color: var(--color-content-strong);
 }
-.log-prose pre.code-block {
+/*
+ * Fenced code blocks — shared by the generation log and the generated-endpoint
+ * script panel so both render identically.  Layout only: the token colours come
+ * from the imported Rouge Github theme (rouge-github.css).  Not scoped to
+ * .log-prose, so any .code-block on the page gets the same treatment.
+ */
+pre.code-block {
   margin: 0.5rem 0;
   padding: 0.5rem;
   overflow-x: auto;
   background: var(--color-surface-sunken);
   border: var(--border-width-hairline) solid var(--color-edge-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   line-height: 1.625;
   white-space: pre-wrap;
   word-break: break-word;
 }
-.log-prose pre.code-block code {
+pre.code-block code {
   padding: 0;
-  background: none;
+  background: none; /* override the theme's .highlight base background */
   border: 0;
-  color: var(--color-content-default);
-}
-
-/*
- * Rouge token colours, scoped to the log and mapped to the Japanese traditional
- * palette.  Restrained on purpose (DESIGN.md "克制的精準"): comments recede,
- * keywords take the Kon navy, strings the Wakatake green, numbers/symbols the
- * GunJyo blue — everything else stays body ink.
- *
- * The brand accent colours (-500 green/blue/coral) are mid-light and sit on the
- * near-white sunken well, so they are darkened here — same hue, lower OKLCH
- * lightness — to clear the Projector Floor Rule's contrast bar.  Derived from
- * the tokens so the hues stay tied to the design system's single source.
- */
-.log-prose .highlight {
-  --syntax-comment: var(--color-content-muted);
-  --syntax-keyword: var(--color-primary);
-  --syntax-string: oklch(from var(--color-success) 0.5 calc(c + 0.04) h);
-  --syntax-number: oklch(from var(--color-secondary) 0.48 calc(c + 0.03) h);
-  --syntax-name: var(--color-content-strong);
-  --syntax-error: oklch(from var(--color-danger) 0.52 calc(c + 0.04) h);
-}
-.log-prose .highlight .c,
-.log-prose .highlight .c1,
-.log-prose .highlight .cm,
-.log-prose .highlight .cs {
-  color: var(--syntax-comment);
-  font-style: italic;
-}
-.log-prose .highlight .k,
-.log-prose .highlight .kd,
-.log-prose .highlight .kc,
-.log-prose .highlight .kn,
-.log-prose .highlight .kp,
-.log-prose .highlight .kr {
-  color: var(--syntax-keyword);
-  font-weight: var(--font-weight-medium);
-}
-.log-prose .highlight .s,
-.log-prose .highlight .s1,
-.log-prose .highlight .s2,
-.log-prose .highlight .sb,
-.log-prose .highlight .sd,
-.log-prose .highlight .se,
-.log-prose .highlight .si,
-.log-prose .highlight .sx,
-.log-prose .highlight .sr {
-  color: var(--syntax-string);
-}
-.log-prose .highlight .ss,
-.log-prose .highlight .m,
-.log-prose .highlight .mi,
-.log-prose .highlight .mf,
-.log-prose .highlight .mh,
-.log-prose .highlight .il,
-.log-prose .highlight .vi,
-.log-prose .highlight .vg,
-.log-prose .highlight .vc {
-  color: var(--syntax-number);
-}
-.log-prose .highlight .nc,
-.log-prose .highlight .nn,
-.log-prose .highlight .no,
-.log-prose .highlight .nb,
-.log-prose .highlight .bp {
-  color: var(--syntax-name);
-}
-.log-prose .highlight .err {
-  color: var(--syntax-error);
+  font-family: inherit;
 }

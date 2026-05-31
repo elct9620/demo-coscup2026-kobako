@@ -40,7 +40,7 @@
       </div>
       <div>
         <p class="mb-1 text-sm font-medium text-content-muted">Script</p>
-        <pre class="max-h-40 overflow-auto border border-edge-default bg-surface-sunken p-3 font-mono text-xs leading-relaxed text-content-default"><%= generation_request.endpoint.script %></pre>
+        <div class="max-h-40 overflow-auto"><%= highlight_code(generation_request.endpoint.script) %></div>
       </div>
       <p>
         <%= link_to "View all live endpoints →", endpoints_path, class: "font-mono text-sm text-primary underline underline-offset-2 hover:no-underline" %>

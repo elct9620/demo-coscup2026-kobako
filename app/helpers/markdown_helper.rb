@@ -32,4 +32,12 @@ module MarkdownHelper
 
     sanitize(MARKDOWN.render(source))
   end
+
+  # Syntax-highlight a standalone code string (e.g. the generated endpoint
+  # script) through the same Rouge code-block markup the log uses, sanitized.
+  def highlight_code(code, language: "ruby")
+    return "".html_safe if code.blank?
+
+    sanitize(HighlightHtmlRenderer.highlight(code, language))
+  end
 end
