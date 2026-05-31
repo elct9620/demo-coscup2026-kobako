@@ -12,10 +12,18 @@
     <%= yield :head %>
 
     <%# Fonts: Jost (geometric display/body) + JetBrains Mono (machine layer).
-        CJK falls back to the system face (PingFang / Noto) via --font-sans. %>
+        CJK falls back to the system face (PingFang / Noto) via --font-sans.
+        Loaded non-render-blocking (media=print → all on load) so a flaky
+        venue network can never stall first paint: text shows immediately in
+        the fallback face and swaps to Jost/Mono once the sheet arrives. %>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          media="print" onload="this.media='all'">
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    </noscript>
 
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
