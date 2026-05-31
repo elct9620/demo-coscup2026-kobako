@@ -77,4 +77,22 @@ class ResponseSchemaTest < ActiveSupport::TestCase
     assert_kind_of String, error
     assert_match(/meta/, error)
   end
+
+  # ---------------------------------------------------------------------------
+  # Documented contract edges — these pin intentional decisions so they cannot
+  # drift silently (the envelope requires data + meta, but says nothing else).
+  # ---------------------------------------------------------------------------
+
+  test "allows extra top-level keys alongside data and meta" do
+    value = { "data" => 1, "meta" => {}, "links" => { "next" => "?page=2" } }
+    assert_nil ResponseSchema.validate(value)
+  end
+
+  test "treats nil as a valid data value when the key is present" do
+    assert_nil ResponseSchema.validate({ "data" => nil, "meta" => {} })
+  end
+
+  test "rejects a Symbol-keyed envelope — the wire contract requires String keys" do
+    assert_kind_of String, ResponseSchema.validate({ data: 1, meta: {} })
+  end
 end
