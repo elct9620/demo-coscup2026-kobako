@@ -65,3 +65,62 @@ puts "Seeded #{total} demo events spanning the last 30 days."
 puts "  page_view:    #{Event.by_name('page_view').count}"
 puts "  button_click: #{Event.by_name('button_click').count}"
 puts "  form_submit:  #{Event.by_name('form_submit').count}"
+
+# --- Demo endpoints (already-live, validated read-only scripts) ---
+# So the Endpoints list isn't empty on a fresh setup: the audience sees a few
+# working endpoints before the operator generates one live. These scripts are
+# real, sandbox-verified read-only mruby (the same shape the agent generates).
+# The "2026-05-01" window lines up with the 30 days of events seeded above.
+demo_endpoints = [
+  {
+    slug: "page-views-last-7-days",
+    requirement: "Count all page_view events from the past 7 days",
+    script: <<~RUBY.strip
+      counts = Service::Metrics.daily_counts(since: "2026-05-01", name: "page_view")
+      sorted_dates = counts.keys.sort
+      recent_dates = sorted_dates.last(7)
+      sum = 0
+      recent_dates.each { |date| sum += counts[date] }
+      sum
+    RUBY
+  },
+  {
+    slug: "recent-events",
+    requirement: "List the 5 most recent events with their names and timestamps",
+    script: <<~RUBY.strip
+      events = Service::Events.limit(100).to_a.sort_by { |e| e["occurred_at"] }.reverse.first(5).map do |e|
+        { "name" => e["name"], "occurred_at" => e["occurred_at"] }
+      end
+      events
+    RUBY
+  },
+  {
+    slug: "avg-events-per-day",
+    requirement: "Average number of events per day over the last 7 days",
+    script: <<~RUBY.strip
+      counts = Service::Metrics.daily_counts(since: "2026-05-01")
+      sorted_days = counts.keys.sort
+      last_7_days = sorted_days.last(7)
+      if last_7_days.empty?
+        0.0
+      else
+        total_events = 0
+        last_7_days.each { |day| total_events += counts[day] }
+        total_events.to_f / last_7_days.size
+      end
+    RUBY
+  }
+]
+
+puts "Seeding demo endpoints..."
+demo_endpoints.each do |attrs|
+  endpoint = Endpoint.find_or_create_by!(slug: attrs[:slug]) do |e|
+    e.script = attrs[:script]
+    e.status = :active
+  end
+  GenerationRequest.find_or_create_by!(endpoint: endpoint) do |gr|
+    gr.requirement = attrs[:requirement]
+    gr.status = :succeeded
+  end
+end
+puts "Seeded #{Endpoint.count} demo endpoints."
