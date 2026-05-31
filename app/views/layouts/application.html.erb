@@ -41,9 +41,14 @@
           <span class="font-semibold tracking-tight text-content-strong">Dynamic Read-Only API</span>
           <span class="font-mono text-xs text-content-muted">/ generator</span>
         <% end %>
+        <% nav_idle = "text-content-muted hover:text-content-strong" %>
         <nav class="flex items-center gap-5 font-mono text-sm">
-          <%= link_to "Generate", new_endpoint_path, class: "text-content-muted hover:text-content-strong" %>
-          <%= link_to "Endpoints", endpoints_path, class: "text-content-muted hover:text-content-strong" %>
+          <%= link_to "Generate", new_endpoint_path,
+                      class: action_name.in?(%w[new create]) ? "text-content-strong" : nav_idle,
+                      aria: { current: action_name.in?(%w[new create]) ? "page" : nil } %>
+          <%= link_to "Endpoints", endpoints_path,
+                      class: action_name == "index" ? "text-content-strong" : nav_idle,
+                      aria: { current: action_name == "index" ? "page" : nil } %>
         </nav>
       </div>
     </header>
