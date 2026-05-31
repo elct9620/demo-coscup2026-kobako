@@ -164,10 +164,17 @@ production:
 
 ### error-as-feedback 自我驗證迴圈
 - **When to apply**：讓 LLM 自我修正生成的腳本。
-- **Shape**：以 Agent + 單一 `RunScriptTool` 的原生 tool-calling 迴圈實現；沙盒結構化錯誤作為 tool result 餵回，`before_tool_call` 計數封頂達成有限迭代。
+- **Shape**：以 Agent + 單一 `RunScriptTool` 的原生 tool-calling 迴圈實現；沙盒結構化錯誤作為 tool result 餵回，`before_tool_call` 計數封頂達成有限迭代。沙盒執行錯誤與 schema 違規皆走同一條回饋通道（見下方「response envelope 護欄」）。
 - **Canonical example**：`app/agents/endpoint_builder_agent.rb`、`app/tools/run_script_tool.rb`。
 - **Forces this resolves**：Rule complexity（自我驗證編排）；避免重造 LLM orchestration。
 - **Revisit if**：需要多代理協作，或迴圈需跨多個工具。
+
+### response envelope 護欄（Response-envelope guardrail）
+- **When to apply**：生成的端點回傳值需符合一致的對外契約，而非任由 LLM 回裸標量。
+- **Shape**：標準回傳形狀為 `{ "data" => <值>, "meta" => {...} }`。`RunScriptTool` 在沙盒成功執行後，將回傳值過 `ResponseSchema.validate`；不合規則以 `error_type: "SchemaError"` 經 error-as-feedback 通道餵回，LLM 自我修正。schema 是 **生成期（gen-time）契約**，刻意不放進共用的 `ReadOnlySandbox`，故 `EndpointReplay` 上線時不重驗（腳本相同→形狀相同）。`ResponseSchema` 與唯一消費者 `RunScriptTool` 同處 `app/tools/`，nil-on-success（同 `ReadOnlySandbox#validate_params`）。
+- **Canonical example**：`app/tools/response_schema.rb`、`app/tools/run_script_tool.rb`、`app/prompts/endpoint_builder_agent/instructions.txt.erb`。
+- **Forces this resolves**：Consistency（對外 API 形狀一致、自我描述）；Rule complexity（用既有自我驗證迴圈承載契約，不另造校驗層）。
+- **Revisit if**：需在上線時也強制 schema（例如輸出形狀隨資料分支而變，gen-time 單次試跑驗不到，serve time 仍可能吐裸值）；或契約需版本化／envelope 需更豐富的 `meta` 標準欄位。
 
 ### 串流觀察層（Stream-as-observation-layer）
 - **When to apply**：背景 Job 驅動的流程需要即時 UI 回饋，且串流失敗絕不可影響流程本身的結果。
