@@ -65,6 +65,42 @@ class EndpointGenerationTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------------------------------
+  # Real agent wiring (no LLM) — pins the interface the context depends on.
+  #
+  # The fakes above duck-type #captured_script, so a rename or shape change on
+  # the REAL EndpointBuilderAgent would slip past them and only surface in the
+  # gated E2E.  This test drives a real agent: it bypasses #ask (no LLM) but lets
+  # the real submit_endpoint tool run a script through the real sandbox to
+  # populate the capture, then confirms EndpointGeneration reads it and persists.
+  # ---------------------------------------------------------------------------
+
+  test "persists the script a real agent captured through submit_endpoint" do
+    valid_script = '{ "data" => 1, "meta" => {} }'
+
+    agent = EndpointBuilderAgent.new
+    def agent.ask(_requirement) = nil # bypass the LLM loop
+    # Drive the real capture path: the real tool runs the script in the sandbox.
+    submit_result = agent.submit_tool.execute(script: valid_script)
+    assert submit_result[:success], "precondition: the script must pass submit_endpoint"
+
+    result = EndpointGeneration.new("count one", agent: agent).call
+
+    assert result[:ok], "context must succeed off the real agent's capture: #{result[:error]}"
+    assert_equal valid_script, result[:endpoint].script,
+                 "EndpointGeneration must persist exactly what the real agent captured"
+  end
+
+  test "fails when a real agent submitted nothing valid" do
+    agent = EndpointBuilderAgent.new
+    def agent.ask(_requirement) = nil
+
+    result = EndpointGeneration.new("vague", agent: agent).call
+
+    assert_not result[:ok], "no capture on the real agent must surface as failure"
+    assert_nil agent.captured_script
+  end
+
+  # ---------------------------------------------------------------------------
   # Failure path — IterationLimitError (cap hit)
   # ---------------------------------------------------------------------------
 
