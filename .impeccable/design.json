@@ -88,9 +88,9 @@
       "name": "Endpoint URL Chip",
       "kind": "custom",
       "refersTo": "endpoint-url",
-      "description": "生成成功後的端點 URL；JetBrains Mono、凹陷底、銳角、群青連結色、可選取。",
+      "description": "生成成功後的端點 URL；JetBrains Mono、凹陷底、銳角、Kon navy 連結色 + 底線（Link-Contrast Rule）、可選取。",
       "html": "<a class=\"ds-code-link\" href=\"#\">/e/page-views-last-7-days</a>",
-      "css": ".ds-code-link { display: inline-block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.875rem; color: var(--color-secondary, #51a8dd); background: var(--color-surface-sunken, #f1f4f8); padding: 0.375rem 0.5rem; border-radius: 0; text-decoration: none; word-break: break-all; } .ds-code-link:hover { text-decoration: underline; } .ds-code-link:focus-visible { outline: 2px solid var(--color-secondary, #51a8dd); outline-offset: 2px; }"
+      "css": ".ds-code-link { display: inline-block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.875rem; color: var(--color-primary, #0f2540); background: var(--color-surface-sunken, #f1f4f8); padding: 0.375rem 0.5rem; border-radius: 0; text-decoration: underline; text-decoration-color: var(--color-edge-strong, #c3c8cd); text-underline-offset: 2px; word-break: break-all; } .ds-code-link:hover { text-decoration-color: var(--color-primary, #0f2540); } .ds-code-link:focus-visible { outline: 2px solid var(--color-secondary, #51a8dd); outline-offset: 2px; }"
     }
   ],
   "narrative": {
@@ -107,6 +107,7 @@
     "rules": [
       { "name": "The One Ink Rule", "body": "任一畫面只讓一支墨當主筆（多半是 Kon 紺）。群青與三支狀態色是補注，不爭主角；狀態色只在對應狀態出現，不拿來裝飾。", "section": "colors" },
       { "name": "The Projector Floor Rule", "body": "content-subtle (#9a9fa5, 2.6:1) 只能用在 placeholder 與 disabled。任何要被讀的文字一律 content-muted 或更深。", "section": "colors" },
+      { "name": "The Link-Contrast Rule", "body": "連結文字一律用 Kon Navy primary（白底約 15:1）配底線；GunJyo secondary 太亮（白底約 2.4:1），只准當 focus 邊框、指示圓點、填色等非文字用途。", "section": "colors" },
       { "name": "The Mono-Is-Machine Rule", "body": "凡是機器產物——LLM 訊息、tool call、生成腳本、沙盒錯誤、端點 URL——一律 JetBrains Mono；人寫的描述與介面文案用 Jost。", "section": "typography" },
       { "name": "The No-Caps-Sentence Rule", "body": "全大寫只用於 ≤4 字的標籤或徽章。禁止全大寫內文，禁止每個區段上方的 tracked uppercase eyebrow。", "section": "typography" },
       { "name": "The Flat Paper Rule", "body": "表面靜止時一律扁平、無陰影。深度只靠 surface 分層與 1px 邊框；浮層用 surface-overlay + 1px 邊框界定。", "section": "elevation" },
@@ -118,6 +119,7 @@
       "Do 讓 Kon Navy 當每個畫面唯一的主筆；狀態色只在對應狀態出現。",
       "Do 所有機器產物一律 JetBrains Mono。",
       "Do 內文用 content-default 或更深；placeholder 用 content-muted，投影幕讀得到。",
+      "Do 連結文字用 primary (Kon Navy) + 底線（約 15:1）；GunJyo 只當 focus／圓點／填色等非文字。",
       "Do 狀態同時給顏色＋圖示＋文字三信號。",
       "Do 動態用 ease-out 指數曲線、無彈跳；串流 Log 的逐則 stagger 進場是唯一被允許的編排。",
       "Do 每個動畫都附 prefers-reduced-motion: reduce 的淡入或瞬切替代。"
@@ -129,6 +131,7 @@
       "Don't 過度炫技動畫：彈跳／彈簧緩動、滿天玻璃擬態、為動而動。",
       "Don't 用圓角、用陰影、用 >1px 的彩色側邊條。",
       "Don't 把 content-subtle (#9a9fa5, 2.6:1) 用在任何要被讀的文字。",
+      "Don't 用 GunJyo secondary (#51a8dd, 白底約 2.4:1) 當文字或連結色。",
       "Don't 用顏色單獨表達狀態。",
       "Don't 全大寫內文，或在每個區段上方放 tracked uppercase eyebrow。"
     ]

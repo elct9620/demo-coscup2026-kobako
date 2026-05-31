@@ -129,7 +129,7 @@ components:
 - **Kon Navy 紺** (`#0f2540`)：主品牌色。主要動作（生成、提交）、強調文字、品牌標記。hover 在 OKLCH L\* 提亮 +0.04（`oklch(from #0f2540 calc(l + 0.04) c h)`），active +0.07——近黑的品牌色「變亮」表示被按下。
 
 ### Secondary
-- **GunJyo Blue 群青** (`#51a8dd`)：補注用的支援色。連結、資訊提示、次要強調、`info` 狀態。hover 在 OKLCH L\* 加深 -0.04，active -0.07——明亮的色「變暗」表示互動。
+- **GunJyo Blue 群青** (`#51a8dd`)：補注用的支援色，但**只用於非文字**——focus 邊框、live 指示圓點、資訊填色。它太亮，對白底僅約 2.4:1，**不可當白底文字／連結色**（見 The Link-Contrast Rule）。hover 在 OKLCH L\* 加深 -0.04，active -0.07。
 
 ### Tertiary (Status inks)
 - **Wakatake Green 若竹** (`#68be8d`)：`success`——生成成功、端點上線。
@@ -150,6 +150,8 @@ components:
 **The One Ink Rule.** 任一畫面只讓一支墨當主筆（多半是 Kon 紺）。群青與三支狀態色是補注，不爭主角；狀態色只在對應狀態出現，不拿來裝飾。
 
 **The Projector Floor Rule.** `content-subtle` (`#9a9fa5`, 2.6:1) 只能用在 placeholder 與 disabled。任何「要被讀」的文字——尤其投影幕後排——一律用 `content-muted` 或更深。淺灰絕不為了精緻而當內文。
+
+**The Link-Contrast Rule.** 連結文字一律用 **Kon Navy `primary`**（對白底約 15:1），配底線作 affordance。GunJyo `secondary` 太亮（白底約 2.4:1），只准當 focus 邊框、指示圓點、填色等非文字用途——絕不當白底連結色。
 
 ## 3. Typography
 
@@ -213,7 +215,7 @@ components:
 - **Motion:** 新訊息進場以 `translateY(4px)` + fade、ease-out-expo、stagger 串接（見 Do's）。這是本系統唯一被允許的編排式動態，因為它服務「過程即主角」。
 
 ### Endpoint URL / Code chip
-- 生成成功後的端點 URL 與腳本：JetBrains Mono、`surface-sunken` 底、銳角、可選取。URL 用 `secondary`(群青) 作連結色。
+- 生成成功後的端點 URL 與腳本：JetBrains Mono、`surface-sunken` 底、銳角、可選取。URL 連結用 **Kon Navy `primary`** + 底線（The Link-Contrast Rule）。
 
 ## 6. Do's and Don'ts
 
@@ -223,6 +225,7 @@ components:
 - **Do** 讓 Kon Navy 當每個畫面唯一的主筆（One Ink Rule）；狀態色只在對應狀態出現。
 - **Do** 所有「機器產物」（LLM 訊息、tool call、腳本、錯誤、端點 URL）一律 JetBrains Mono（Mono-Is-Machine Rule）。
 - **Do** 內文用 `content-default` (#393d43) 或更深；placeholder 用 `content-muted` (#696f77)，投影幕讀得到（Projector Floor Rule）。
+- **Do** 連結文字用 `primary` (Kon Navy) + 底線（Link-Contrast Rule，約 15:1）；GunJyo 只當 focus／圓點／填色等非文字。
 - **Do** 狀態同時給顏色＋圖示＋文字三信號。
 - **Do** 動態用 ease-out 指數曲線、無彈跳；串流 Log 的逐則 stagger 進場是唯一被允許的編排。
 - **Do** 每個動畫都附 `prefers-reduced-motion: reduce` 的淡入或瞬切替代；揭露動畫必須建立在「預設即可見」之上。
@@ -234,5 +237,6 @@ components:
 - **Don't** 過度炫技動畫：彈跳／彈簧緩動、滿天玻璃擬態、為動而動——上台 demo 時會干擾觀眾理解生成過程。
 - **Don't** 用圓角、用陰影、用 >1px 的彩色側邊條（border-left/right stripe）。
 - **Don't** 把 `content-subtle` (#9a9fa5, 2.6:1) 用在任何要被讀的文字。
+- **Don't** 用 GunJyo `secondary` (#51a8dd, 白底約 2.4:1) 當文字或連結色——它太亮，投影幕後排讀不到。
 - **Don't** 用顏色單獨表達狀態（色盲與投影色偏會失效）。
 - **Don't** 全大寫內文，或在每個區段上方放 tracked uppercase eyebrow。

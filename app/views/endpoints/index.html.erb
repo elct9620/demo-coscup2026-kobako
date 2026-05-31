@@ -15,7 +15,7 @@
         <li class="border border-edge-default bg-surface-raised p-5">
           <div class="flex items-baseline justify-between gap-4">
             <%= link_to dynamic_endpoint_path(endpoint.slug),
-                        class: "break-all font-mono text-sm font-medium text-secondary hover:underline" do %>/e/<%= endpoint.slug %><% end %>
+                        class: "break-all font-mono text-sm font-medium text-primary underline decoration-edge-strong underline-offset-2 hover:decoration-primary" do %>/e/<%= endpoint.slug %><% end %>
             <time class="shrink-0 font-mono text-xs text-content-muted" datetime="<%= endpoint.created_at.iso8601 %>">
               <%= endpoint.created_at.strftime("%Y-%m-%d %H:%M") %>
             </time>

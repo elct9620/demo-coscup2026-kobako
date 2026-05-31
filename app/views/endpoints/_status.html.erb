@@ -28,7 +28,7 @@
         <p class="mb-1 text-sm font-medium text-content-muted">Endpoint URL</p>
         <%= link_to dynamic_endpoint_url(generation_request.endpoint.slug),
                     dynamic_endpoint_path(generation_request.endpoint.slug),
-                    class: "inline-block break-all bg-surface-sunken px-2 py-1 font-mono text-sm text-secondary hover:underline" %>
+                    class: "inline-block break-all bg-surface-sunken px-2 py-1 font-mono text-sm text-primary underline decoration-edge-strong underline-offset-2 hover:decoration-primary" %>
       </div>
       <div>
         <p class="mb-1 text-sm font-medium text-content-muted">Script</p>
@@ -49,7 +49,7 @@
       <p class="font-mono text-sm text-content-default"><%= generation_request.error_message %></p>
     <% end %>
     <p>
-      <%= link_to "Try again", new_endpoint_path, class: "font-mono text-sm text-secondary hover:underline" %>
+      <%= link_to "Try again", new_endpoint_path, class: "font-mono text-sm text-primary underline underline-offset-2 hover:no-underline" %>
     </p>
   </div>
 
