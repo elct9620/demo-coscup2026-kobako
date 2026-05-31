@@ -43,11 +43,13 @@ class LogEntryPresenter
     @message.content.presence || EMPTY
   end
 
-  # Mirror the historical partial: prefer the clean :script argument, falling
+  # Name each call before its script so the operator still sees which tool ran
+  # (inspect_query vs submit_endpoint — the explore/commit distinction).  Mirror
+  # the historical partial otherwise: prefer the clean :script argument, falling
   # back to the raw arguments JSON when a tool has no script (string- or
   # symbol-keyed arguments both resolve via with_indifferent_access).
   def tool_calls_markdown
-    @message.tool_calls.map { |tc| fenced_ruby(script_of(tc)) }.join("\n\n")
+    @message.tool_calls.map { |tc| "**#{tc.name}**\n\n#{fenced_ruby(script_of(tc))}" }.join("\n\n")
   end
 
   def script_of(tool_call)

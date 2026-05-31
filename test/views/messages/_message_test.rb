@@ -6,19 +6,19 @@ require "test_helper"
 #
 # Guards the core observability feature of the Demo: each agent turn in the
 # EndpointBuilderAgent self-verification loop is streamed to the operator via
-# Turbo Stream using this partial.
+# Turbo Stream using this partial.  Every turn now renders through the shared
+# Markdown pipeline (MarkdownHelper#markdown_log_entry).
 #
 # Key invariant: tool_call messages must display the clean script content
-# (e.g. "Event.count") rather than the raw JSON wrapper
-# (e.g. {"script":"Event.count"}) regardless of whether the ToolCall
-# arguments hash uses string keys (DB read-back path) or symbol keys
-# (in-memory path).
+# (e.g. "Event.count") rather than the raw JSON wrapper (e.g. {"script":...})
+# regardless of whether the ToolCall arguments hash uses string keys (DB
+# read-back path) or symbol keys (in-memory path).
 class MessagePartialTest < ActionView::TestCase
   # ---------------------------------------------------------------------------
   # tool_call message — string-keyed arguments (DB read-back path)
   # ---------------------------------------------------------------------------
 
-  test "renders clean script for tool_call message with string-keyed arguments" do
+  test "renders clean script in a code block for tool_call with string-keyed arguments" do
     chat = Chat.create!
     msg  = Message.new(role: :assistant, content: nil, chat: chat)
     msg.save!(validate: false)
@@ -31,7 +31,7 @@ class MessagePartialTest < ActionView::TestCase
 
     render partial: "messages/message", locals: { message: msg.reload }
 
-    assert_select "pre", text: "Event.count"
+    assert_select "pre.code-block", /Event\.count/
     assert_not_includes rendered, '{"script"'
   end
 
@@ -39,7 +39,7 @@ class MessagePartialTest < ActionView::TestCase
   # tool_call message — symbol-keyed arguments (in-memory / hypothetical path)
   # ---------------------------------------------------------------------------
 
-  test "renders clean script for tool_call message with symbol-keyed arguments" do
+  test "renders clean script in a code block for tool_call with symbol-keyed arguments" do
     chat = Chat.create!
     msg  = Message.new(role: :assistant, content: nil, chat: chat)
     msg.save!(validate: false)
@@ -54,7 +54,7 @@ class MessagePartialTest < ActionView::TestCase
 
     render partial: "messages/message", locals: { message: msg.reload }
 
-    assert_select "pre", text: "Metric.average(:value)"
+    assert_select "pre.code-block", /Metric\.average/
     assert_not_includes rendered, '{"script"'
   end
 
@@ -79,16 +79,32 @@ class MessagePartialTest < ActionView::TestCase
   end
 
   # ---------------------------------------------------------------------------
-  # non-tool_call assistant message (plain content path)
+  # non-tool_call assistant message renders prose, not a code block
   # ---------------------------------------------------------------------------
 
-  test "renders plain text content for assistant message without tool calls" do
+  test "renders markdown prose for an assistant message without tool calls" do
     chat = Chat.create!
-    msg  = Message.new(role: :assistant, content: "Here is my analysis.", chat: chat)
+    msg  = Message.new(role: :assistant, content: "Here is my **analysis**.", chat: chat)
     msg.save!(validate: false)
 
     render partial: "messages/message", locals: { message: msg.reload }
 
-    assert_select "pre", text: "Here is my analysis."
+    assert_select ".log-prose p", /Here is my/
+    assert_select ".log-prose strong", text: "analysis"
+    assert_select "pre.code-block", false
+  end
+
+  # ---------------------------------------------------------------------------
+  # tool result message renders the sandbox return in a code block
+  # ---------------------------------------------------------------------------
+
+  test "renders the sandbox tool result in a code block" do
+    chat = Chat.create!
+    msg  = Message.new(role: :tool, content: "{success: true, result: 2}", chat: chat)
+    msg.save!(validate: false)
+
+    render partial: "messages/message", locals: { message: msg.reload }
+
+    assert_select "pre.code-block", /success/
   end
 end

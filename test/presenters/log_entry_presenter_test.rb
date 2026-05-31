@@ -19,12 +19,13 @@ class LogEntryPresenterTest < ActiveSupport::TestCase
     assert_equal "(empty)", LogEntryPresenter.new(msg).to_markdown
   end
 
-  test "tool call fences the clean script as a ruby block" do
+  test "tool call names the tool, then fences the clean script as a ruby block" do
     msg = build_message(role: :assistant)
     msg.tool_calls.create!(tool_call_id: "c1", name: "inspect_query",
                            arguments: { "script" => "Event.count" })
 
-    assert_equal "```ruby\nEvent.count\n```", LogEntryPresenter.new(msg.reload).to_markdown
+    assert_equal "**inspect_query**\n\n```ruby\nEvent.count\n```",
+                 LogEntryPresenter.new(msg.reload).to_markdown
   end
 
   test "tool call without a script key falls back to the arguments JSON" do
@@ -33,6 +34,7 @@ class LogEntryPresenterTest < ActiveSupport::TestCase
 
     markdown = LogEntryPresenter.new(msg.reload).to_markdown
 
+    assert_includes markdown, "**other**"
     assert_includes markdown, "```ruby"
     assert_includes markdown, '"param"'
   end

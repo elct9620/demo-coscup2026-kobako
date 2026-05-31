@@ -257,7 +257,7 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
     get endpoint_path(gr)
 
     assert_select "[id='generation_log_#{gr.id}']" do
-      assert_select "pre", text: /events\.count/
+      assert_select ".log-prose", /events\.count/
     end
   end
 
@@ -275,7 +275,7 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
     get endpoint_path(gr)
 
     assert_select "[id='generation_log_#{gr.id}']" do
-      assert_select "pre", text: /events\.count/
+      assert_select ".log-prose", /events\.count/
     end
     assert_not_includes @response.body, "SECRET_PROMPT_system"
     assert_not_includes @response.body, "SECRET_PROMPT_user"

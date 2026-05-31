@@ -117,7 +117,10 @@ class MessageTest < ActiveSupport::TestCase
     assert_equal 1, broadcasts.size
     assert_equal "replace", broadcasts.first["action"]
     assert_equal ActionView::RecordIdentifier.dom_id(msg), broadcasts.first["target"]
-    assert_includes broadcasts.first.to_html, "success: true"
+    # The result renders through the Markdown pipeline, so Rouge splits it into
+    # token <span>s; strip them to assert on the carried text itself.
+    rendered_text = ActionController::Base.helpers.strip_tags(broadcasts.first.to_html)
+    assert_includes rendered_text, "success: true"
   end
 
   test "re-broadcast method sends nothing when chat has no generation_request" do

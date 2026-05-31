@@ -169,7 +169,9 @@ components:
 - **Code** (400, `0.875rem`/text-sm, 1.625)：Generation Log、生成的腳本、端點 URL。`leading-relaxed` 讓串流的多行內容好讀。
 
 ### Named Rules
-**The Mono-Is-Machine Rule.** 凡是「機器產物」——LLM 訊息、tool call、生成的 mruby 腳本、沙盒錯誤、端點 URL——一律 JetBrains Mono。人寫的描述與介面文案用 Jost。字體本身就標示了「誰寫的」。
+**The Mono-Is-Machine Rule.** 凡是「機器產物」——tool call、生成的 mruby 腳本、沙盒結果、沙盒錯誤、端點 URL——一律 JetBrains Mono。人寫的描述與介面文案用 Jost。字體本身就標示了「誰寫的」。
+
+*Prose exception（Generation Log）.* LLM 的**敘述性回應**走 Markdown 富文本（Jost），以投影可讀為先——這是規則的有意破例。但**程式碼仍是機器**：行內 `code` 與 fenced code block（腳本、沙盒結果）一律切回 JetBrains Mono、`surface-sunken` 凹陷塊，語法上色取自日本傳統色（紺＝關鍵字、若竹＝字串、群青＝數字／符號、克制不喧賓）。整條 Generation Log 收斂到單一 Markdown surface（`.log-prose`），prose 與 code 的字體切換本身就維持了「散文是人讀的、程式碼是機器的」這層區辨。
 
 **The No-Caps-Sentence Rule.** 全大寫只用於 ≤4 字的標籤或徽章。禁止全大寫內文，禁止在每個區段上方放 tracked uppercase eyebrow。
 
