@@ -46,16 +46,16 @@ class EndpointGeneration
 
   # Run the self-verification loop and return a structured result.
   #
-  # The final script is whatever SubmitEndpointTool captured during the loop
-  # (the last submission that passed sandbox execution + the envelope check).
-  # We read it from the agent's #submit_tool rather than scanning chat history.
+  # The final script is whatever the agent captured during the loop (the last
+  # submission that passed sandbox execution + the envelope check).  We ask the
+  # agent for it via #captured_script rather than scanning chat history.
   #
   # @return [Hash] { ok: true,  endpoint: Endpoint }  on success
   # @return [Hash] { ok: false, error: String }        on failure
   def call
     @agent.ask(@requirement)
 
-    script = @agent.submit_tool.captured_script
+    script = @agent.captured_script
     raise ExtractionError, "Agent finished without submitting a valid endpoint script" if script.nil?
 
     endpoint = Endpoint.create!(script: script)

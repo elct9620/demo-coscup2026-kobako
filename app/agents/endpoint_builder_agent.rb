@@ -14,9 +14,8 @@
 #   3. Sandbox/schema errors from either tool are fed back as the tool result and
 #      the LLM self-corrects in the next turn.
 #
-# "Which script is the final one" is answered by SubmitEndpointTool#captured_script
-# (exposed via #submit_tool), not by scanning the chat history — see
-# EndpointGeneration (#8).
+# "Which script is the final one" is answered by #captured_script (delegated to
+# SubmitEndpointTool), not by scanning the chat history — see EndpointGeneration (#8).
 #
 # Iteration cap (SPEC "有限迭代" invariant):
 #   A before_tool_call callback counts every tool invocation (both inspect_query
@@ -59,8 +58,9 @@ class EndpointBuilderAgent < RubyLLM::Agent
   # Carry this out of chat#complete and handle in EndpointGeneration context (#8).
   class IterationLimitError < StandardError; end
 
-  # The submit_endpoint tool instance this agent drives.  EndpointGeneration
-  # reads #submit_tool.captured_script after the loop to get the final script.
+  # The submit_endpoint tool instance this agent drives.  Exposed so the internal
+  # wiring (the bound tool is the tracked instance) can be asserted; callers that
+  # only want the result should use #captured_script instead.
   attr_reader :submit_tool
 
   def initialize(...)
@@ -72,6 +72,13 @@ class EndpointBuilderAgent < RubyLLM::Agent
 
     @tool_call_count = 0
     before_tool_call { |_tool_call| check_iteration_limit! }
+  end
+
+  # The final script the agent converged on: the last one submit_endpoint
+  # validated and captured, or nil if the agent never submitted a valid script.
+  # EndpointGeneration reads this after the loop instead of reaching into the tool.
+  def captured_script
+    @submit_tool.captured_script
   end
 
   private

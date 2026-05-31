@@ -9,18 +9,19 @@ require "test_helper"
 # Mock strategy:
 #   EndpointGeneration.new(requirement, agent:) accepts an optional injected
 #   agent.  The real agent answers "which script is final" through
-#   #submit_tool.captured_script (set by SubmitEndpointTool during the loop), so
-#   the fakes here only need to expose #ask and #submit_tool — no synthetic chat
+#   #captured_script (delegated to SubmitEndpointTool during the loop), so the
+#   fakes here only need to expose #ask and #captured_script — no synthetic chat
 #   history is required.
 #
-#   1. FakeSuccessAgent      — #submit_tool.captured_script returns a script.
+#   1. FakeSuccessAgent      — #captured_script returns a script.
 #                              EndpointGeneration persists it as an Endpoint.
 #   2. FakeFailureAgent      — #ask raises IterationLimitError (cap hit).
 #                              EndpointGeneration rescues → { ok: false }.
-#   3. FakeNoSubmitAgent     — loop ends but captured_script is nil (agent never
+#   3. FakeNoSubmitAgent     — loop ends but #captured_script is nil (agent never
 #                              submitted a valid script). → ExtractionError → false.
 #
-# The real LLM end-to-end round-trip is covered by the gated E2E test.
+# The real agent's #captured_script wiring is pinned by the "real agent" test
+# below; the full LLM round-trip is covered by the gated E2E test.
 class EndpointGenerationTest < ActiveSupport::TestCase
   VALIDATED_SCRIPT = '{ "data" => Service::Events.count, "meta" => {} }'
 
@@ -164,19 +165,16 @@ class EndpointGenerationTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------------------------------
-  # Fake agent helpers
+  # Fake agent helpers — duck-types of EndpointBuilderAgent exposing #ask and
+  # #captured_script (the same interface the real agent presents to the context).
   # ---------------------------------------------------------------------------
 
-  # Minimal stand-in for SubmitEndpointTool: just carries captured_script.
-  CapturedTool = Struct.new(:captured_script)
-
-  # Duck-type of EndpointBuilderAgent exposing #ask and #submit_tool.
-  # #ask is a no-op; the captured script is what EndpointGeneration reads.
+  # #ask is a no-op; #captured_script is what EndpointGeneration reads.
   class FakeSuccessAgent
-    attr_reader :submit_tool
+    attr_reader :captured_script
 
     def initialize(captured_script)
-      @submit_tool = CapturedTool.new(captured_script)
+      @captured_script = captured_script
     end
 
     def ask(_requirement) = nil
@@ -184,10 +182,10 @@ class EndpointGenerationTest < ActiveSupport::TestCase
 
   # Loop ends cleanly but the agent never submitted a valid script.
   class FakeNoSubmitAgent
-    attr_reader :submit_tool
+    attr_reader :captured_script
 
     def initialize
-      @submit_tool = CapturedTool.new(nil)
+      @captured_script = nil
     end
 
     def ask(_requirement) = nil
@@ -197,10 +195,10 @@ class EndpointGenerationTest < ActiveSupport::TestCase
   # captured_script is never read because the cap is a failure regardless — it
   # may even be set (see the strict-cap test) and must still be discarded.
   class FakeFailureAgent
-    attr_reader :submit_tool
+    attr_reader :captured_script
 
     def initialize(captured_script: nil)
-      @submit_tool = CapturedTool.new(captured_script)
+      @captured_script = captured_script
     end
 
     def ask(_requirement)
