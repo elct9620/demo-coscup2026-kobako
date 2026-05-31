@@ -5,16 +5,19 @@
 
   message.role: :assistant (LLM turn) | :tool (sandbox trial-run result) | :user
   message.content: text content of the message (plain string or JSON for tool calls)
+
+  Everything here is a machine artefact, so the whole entry is set in mono
+  (DESIGN.md, "The Mono-Is-Machine Rule").  log-entry-in animates the reveal.
 %>
 <% llm_message = message.to_llm %>
-<div id="<%= dom_id(message) %>" class="rounded border border-gray-200 p-3 text-sm font-mono" data-role="<%= message.role %>">
-  <p class="text-xs text-gray-400 font-sans mb-1 capitalize"><%= message.role %></p>
+<div id="<%= dom_id(message) %>" class="log-entry-in border border-edge-default bg-surface-raised p-3" data-role="<%= message.role %>">
+  <p class="mb-1.5 font-mono text-xs text-content-muted"><%= message.role %></p>
   <% if llm_message.tool_call? %>
     <% message.tool_calls.each do |tc| %>
-      <p class="text-gray-700 break-all"><span class="font-semibold">Tool:</span> <%= tc.name %></p>
-      <pre class="mt-1 text-xs bg-gray-50 border border-gray-100 rounded p-2 overflow-x-auto whitespace-pre-wrap"><%= tc.arguments.with_indifferent_access[:script] || tc.arguments.to_json %></pre>
+      <p class="break-all font-mono text-sm text-content-default"><span class="font-semibold text-content-strong">tool:</span> <%= tc.name %></p>
+      <pre class="mt-1.5 overflow-x-auto whitespace-pre-wrap border border-edge-subtle bg-surface-sunken p-2 font-mono text-xs leading-relaxed text-content-default"><%= tc.arguments.with_indifferent_access[:script] || tc.arguments.to_json %></pre>
     <% end %>
   <% else %>
-    <pre class="whitespace-pre-wrap break-all text-gray-800"><%= message.content.presence || "(empty)" %></pre>
+    <pre class="whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-content-default"><%= message.content.presence || "(empty)" %></pre>
   <% end %>
 </div>

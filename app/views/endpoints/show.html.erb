@@ -7,13 +7,16 @@
 %>
 <%= turbo_stream_from @generation_request %>
 
-<div class="w-full max-w-2xl mx-auto space-y-6">
-  <h1 class="text-2xl font-bold">Generation Status</h1>
+<div class="mx-auto max-w-3xl space-y-8">
+  <header>
+    <h1 class="text-3xl font-bold tracking-tight text-content-strong">Generation status</h1>
+    <p class="mt-2 font-mono text-xs text-content-muted">error-as-feedback loop · what you verify is what ships</p>
+  </header>
 
-  <div class="rounded-md bg-gray-50 border border-gray-200 p-4">
-    <p class="text-sm text-gray-500 font-medium mb-1">Requirement</p>
-    <p class="text-sm text-gray-900"><%= @generation_request.requirement %></p>
-  </div>
+  <section class="border border-edge-default bg-surface-raised p-5">
+    <p class="mb-1 text-sm font-medium text-content-muted">Requirement</p>
+    <p class="text-content-default"><%= @generation_request.requirement %></p>
+  </section>
 
   <%#
     Turbo Frame "status" — replaced by GenerationRequest#broadcast_status_to_self
@@ -30,14 +33,19 @@
     in real time by Message#broadcast_message_to_generation_request as the agent
     runs.  Target id matches the target: kwarg in the broadcast callback.
   %>
-  <div class="space-y-2">
-    <h2 class="text-sm font-semibold text-gray-600">Generation Log</h2>
-    <div id="generation_log_<%= @generation_request.id %>" class="space-y-2">
+  <section class="space-y-3">
+    <div class="flex items-baseline justify-between border-b border-edge-default pb-2">
+      <h2 class="text-sm font-semibold text-content-strong">Generation log</h2>
+      <span class="inline-flex items-center gap-1.5 font-mono text-xs text-content-muted">
+        <span class="h-1.5 w-1.5 rounded-full bg-secondary" aria-hidden="true"></span>live
+      </span>
+    </div>
+    <div id="generation_log_<%= @generation_request.id %>" class="space-y-3">
       <%# Messages are appended here live via Turbo Stream broadcasts (#13) %>
     </div>
-  </div>
+  </section>
 
-  <p class="text-sm text-gray-500">
-    <%= link_to "← Generate another endpoint", new_endpoint_path, class: "text-indigo-600 hover:text-indigo-800" %>
+  <p>
+    <%= link_to "← Generate another endpoint", new_endpoint_path, class: "font-mono text-sm text-secondary hover:underline" %>
   </p>
 </div>
