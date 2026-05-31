@@ -12,13 +12,14 @@
 # response self-describing (named "data" + a "meta" block) instead of a bare
 # scalar like 42 or "page_view".
 #
-# Why here and not in ReadOnlySandbox:
+# Why here (next to RunScriptTool) and not in ReadOnlySandbox:
 #   The sandbox's responsibility is *safe execution* and returning a
 #   wire-representable value.  The response *shape* is a product-level generation
-#   contract, enforced at the validation surface (RunScriptTool) — not baked into
-#   the shared execution path.  EndpointReplay therefore replays the
-#   already-conforming script without re-checking (the script is identical, so
-#   its shape is too).  This preserves the "驗證即上線" invariant.
+#   contract, enforced at the validation surface — so this lives beside its sole
+#   consumer, RunScriptTool, not baked into the shared execution path.
+#   EndpointReplay therefore replays the already-conforming script without
+#   re-checking (the script is identical, so its shape is too).  This preserves
+#   the "驗證即上線" invariant.
 #
 # Convention:
 #   #validate returns nil when the value conforms, or a single human-readable
