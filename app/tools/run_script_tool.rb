@@ -34,7 +34,7 @@ class RunScriptTool < RubyLLM::Tool
 
   def initialize(timeout: ReadOnlySandbox::DEFAULT_TIMEOUT,
                  memory_limit: ReadOnlySandbox::DEFAULT_MEMORY_LIMIT)
-    @sandbox = ReadOnlySandbox.new(timeout: timeout, memory_limit: memory_limit)
+    @runner = ScriptRunner.new(timeout: timeout, memory_limit: memory_limit)
   end
 
   # Execute the script and return a tool result hash suitable for LLM consumption.
@@ -56,20 +56,12 @@ class RunScriptTool < RubyLLM::Tool
   # error-as-feedback loop it uses for runtime errors — the response contract is
   # part of "correctness" for a generated endpoint.
   def execute(script:)
-    outcome = @sandbox.call(script)
-    return sandbox_error(outcome[:error]) unless outcome[:ok]
+    result = @runner.call(script)
+    return result unless result[:success]
 
-    schema_error = ResponseSchema.validate(outcome[:result])
+    schema_error = ResponseSchema.validate(result[:result])
     return { success: false, error: schema_error, error_type: "SchemaError" } if schema_error
 
-    { success: true, result: outcome[:result] }
-  end
-
-  private
-
-  def sandbox_error(err)
-    result = { success: false, error: err[:message], error_type: err[:type] }
-    result[:details] = err[:details] if err[:details]
     result
   end
 end
