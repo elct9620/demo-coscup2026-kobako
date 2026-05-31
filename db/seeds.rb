@@ -8,21 +8,9 @@
 #   - "top event names by count"
 #   - "events with a specific property value"
 
-pages   = %w[/ /about /pricing /blog /docs /contact]
-sources = %w[google twitter direct newsletter organic]
-buttons = %w[cta_signup cta_demo navbar_login footer_contact]
-forms   = %w[contact_form newsletter_signup demo_request]
-
-# Weight table: event name → relative frequency
-event_weights = {
-  "page_view"    => 60,
-  "button_click" => 20,
-  "form_submit"  => 10,
-  "scroll_depth" => 8,
-  "session_end"  => 2
-}
-
-weighted_pool = event_weights.flat_map { |name, weight| Array.new(weight, name) }
+# The weighted name model and per-name property shapes live in EventFactory,
+# shared with the live "inject events" action (DemoEventsController) so the two
+# data sources never drift apart.
 
 puts "Seeding demo events..."
 
@@ -35,28 +23,8 @@ Event.where("occurred_at >= ?", 30.days.ago).delete_all
   daily_volume = date.wday.in?([ 0, 6 ]) ? rand(10..20) : rand(30..55)
 
   daily_volume.times do
-    name = weighted_pool.sample
-    hour = rand(7..22)
-    minute = rand(0..59)
-    second = rand(0..59)
-    occurred_at = date.to_time.utc + hour.hours + minute.minutes + second.seconds
-
-    properties = case name
-    when "page_view"
-      { "path" => pages.sample, "referrer" => sources.sample, "duration_ms" => rand(500..8000) }
-    when "button_click"
-      { "button_id" => buttons.sample, "path" => pages.sample }
-    when "form_submit"
-      { "form_id" => forms.sample, "path" => pages.sample, "success" => [ true, false ].sample }
-    when "scroll_depth"
-      { "path" => pages.sample, "percent" => [ 25, 50, 75, 100 ].sample }
-    when "session_end"
-      { "duration_s" => rand(10..900), "pages_visited" => rand(1..8) }
-    else
-      {}
-    end
-
-    Event.create!(name: name, occurred_at: occurred_at, properties: properties)
+    occurred_at = date.to_time.utc + rand(7..22).hours + rand(0..59).minutes + rand(0..59).seconds
+    EventFactory.create(occurred_at: occurred_at)
   end
 end
 
