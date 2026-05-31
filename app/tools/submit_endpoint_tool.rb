@@ -15,9 +15,16 @@
 #                              endpoint candidate, and { success: true } returns.
 #
 # Capture is how "which script is the final one" is answered mechanically.
-# EndpointGeneration reads #captured_script after the agent loop instead of
-# scanning the chat history.  Each successful submission overwrites it, so the
-# value is the LAST script that passed — the one the agent converged on.
+# After the agent loop, EndpointGeneration reads it (via the agent's
+# #captured_script delegator) instead of scanning the chat history.  Each
+# successful submission overwrites it, so the value is the LAST script that
+# passed — the one the agent converged on.
+#
+# Lifecycle: @captured_script is per-instance mutable state, and that is safe
+# because one tool instance serves exactly one generation — EndpointBuilderAgent
+# news a fresh SubmitEndpointTool per agent, and EndpointGeneration news a fresh
+# agent per call.  Do not share a single instance across generations, or a stale
+# capture could leak from one into the next.
 #
 # 驗證即上線 invariant: validation runs the script through the same
 # ReadOnlySandbox that EndpointReplay uses to serve it, and only a captured
