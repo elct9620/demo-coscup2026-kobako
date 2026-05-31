@@ -3,6 +3,7 @@
 # Operator-facing generation UI (Hotwire/Turbo).
 #
 # Routes handled:
+#   GET  /endpoints      → list the live endpoints
 #   GET  /endpoints/new  → render the requirement form
 #   POST /endpoints      → create GenerationRequest, enqueue job, redirect to show
 #   GET  /endpoints/:id  → show generation status (pending / succeeded / failed)
@@ -20,6 +21,10 @@
 #     protection via the authenticity token — all state-changing requests (POST)
 #     require a valid token.
 class EndpointsController < ApplicationController
+  def index
+    @endpoints = Endpoint.includes(:generation_request).order(created_at: :desc)
+  end
+
   def new
     @generation_request = GenerationRequest.new
   end

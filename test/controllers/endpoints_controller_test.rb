@@ -21,6 +21,34 @@ require "test_helper"
 #   E (EoP): no privileged operations; no auth in this demo.
 class EndpointsControllerTest < ActionDispatch::IntegrationTest
   # ---------------------------------------------------------------------------
+  # GET /endpoints (index) — list of live endpoints
+  # ---------------------------------------------------------------------------
+
+  test "GET /endpoints returns 200" do
+    get endpoints_path
+    assert_response :ok
+  end
+
+  test "GET /endpoints links each endpoint to its live replay URL" do
+    endpoint = endpoints(:active_endpoint)
+    get endpoints_path
+    assert_select "a[href=?]", dynamic_endpoint_path(endpoint.slug)
+  end
+
+  test "GET /endpoints shows the originating requirement for an endpoint" do
+    get endpoints_path
+    assert_includes @response.body, "count page_view events"
+  end
+
+  test "GET /endpoints renders an empty state linking to the form when none exist" do
+    GenerationRequest.update_all(endpoint_id: nil)
+    Endpoint.delete_all
+    get endpoints_path
+    assert_response :ok
+    assert_select "a[href=?]", new_endpoint_path
+  end
+
+  # ---------------------------------------------------------------------------
   # GET /endpoints/new
   # ---------------------------------------------------------------------------
 

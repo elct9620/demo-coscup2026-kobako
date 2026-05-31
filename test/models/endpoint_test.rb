@@ -1,6 +1,18 @@
 require "test_helper"
 
 class EndpointTest < ActiveSupport::TestCase
+  # --- associations ---
+
+  test "has one generation_request (reverse of GenerationRequest belongs_to)" do
+    endpoint = endpoints(:active_endpoint)
+    assert_equal generation_requests(:succeeded_request), endpoint.generation_request
+  end
+
+  test "generation_request is nil when no request points at the endpoint" do
+    endpoint = Endpoint.create!(script: "events.all")
+    assert_nil endpoint.generation_request
+  end
+
   # --- validations ---
 
   test "should be valid with required attributes" do

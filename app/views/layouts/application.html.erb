@@ -28,12 +28,15 @@
 
   <body class="min-h-screen bg-surface-base font-sans text-content-default antialiased">
     <header class="border-b border-edge-default bg-surface-raised">
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
+      <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4">
         <%= link_to root_path, class: "group inline-flex items-baseline gap-2 no-underline" do %>
           <span class="font-semibold tracking-tight text-content-strong">Dynamic Read-Only API</span>
           <span class="font-mono text-xs text-content-muted">/ generator</span>
         <% end %>
-        <span class="hidden font-mono text-xs text-content-muted sm:inline">natural language → sandbox-verified → live</span>
+        <nav class="flex items-center gap-5 font-mono text-sm">
+          <%= link_to "Generate", new_endpoint_path, class: "text-content-muted hover:text-content-strong" %>
+          <%= link_to "Endpoints", endpoints_path, class: "text-content-muted hover:text-content-strong" %>
+        </nav>
       </div>
     </header>
 

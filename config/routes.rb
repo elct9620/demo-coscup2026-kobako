@@ -11,8 +11,10 @@ Rails.application.routes.draw do
   get "e/:slug", to: "dynamic_endpoints#show", as: :dynamic_endpoint
 
   # Operator-facing generation UI (Hotwire).
-  # Only new/create/show are needed: there is no list, edit, or delete.
-  resources :endpoints, only: %i[new create show]
+  # index lists the live endpoints (the demo's "these are on the air now" view);
+  # new/create drive generation; show tracks one generation attempt.
+  # No edit or delete: endpoints are immutable once validated and live.
+  resources :endpoints, only: %i[index new create show]
 
   # Root → generation form.
   root "endpoints#new"
