@@ -45,6 +45,13 @@ class LogEntryPresenterTest < ActiveSupport::TestCase
     assert_equal "```ruby\n{success: true, result: 2}\n```", LogEntryPresenter.new(msg).to_markdown
   end
 
+  test "content containing backticks gets a longer fence so it cannot break out" do
+    msg = build_message(role: :tool, content: "value with ``` inside")
+
+    # the run of 3 backticks forces a 4-backtick fence (CommonMark)
+    assert_equal "````ruby\nvalue with ``` inside\n````", LogEntryPresenter.new(msg).to_markdown
+  end
+
   private
 
   def build_message(role:, content: nil)

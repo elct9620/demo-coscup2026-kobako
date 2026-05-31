@@ -32,7 +32,7 @@ class LogEntryPresenter
   private
 
   def tool_call?
-    @message.to_llm.tool_call?
+    @message.tool_calls.any?
   end
 
   def tool_result?
@@ -56,7 +56,15 @@ class LogEntryPresenter
     tool_call.arguments.with_indifferent_access[:script] || tool_call.arguments.to_json
   end
 
+  # Wrap +code+ in a fence long enough to survive content that itself contains
+  # backticks (CommonMark: the fence must out-length any backtick run inside).
+  # Without this, such a script/result would silently break out of its block.
   def fenced_ruby(code)
-    "```ruby\n#{code}\n```"
+    fence = "`" * [ longest_backtick_run(code) + 1, 3 ].max
+    "#{fence}ruby\n#{code}\n#{fence}"
+  end
+
+  def longest_backtick_run(code)
+    code.to_s.scan(/`+/).map(&:length).max || 0
   end
 end

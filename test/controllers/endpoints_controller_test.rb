@@ -230,6 +230,18 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{dynamic_endpoint_path(endpoint.slug)}']"
   end
 
+  # The live endpoint's script renders through the same highlight pipeline as
+  # the generation log, so the success panel and the log read consistently.
+  test "GET /endpoints/:id renders the endpoint script as a highlighted code block on success" do
+    endpoint = Endpoint.create!(script: "Service::Events.count")
+    gr = GenerationRequest.create!(requirement: "count all events")
+    gr.succeeded!(endpoint: endpoint)
+
+    get endpoint_path(gr)
+
+    assert_select "pre.code-block", /Service::Events/
+  end
+
   test "GET /endpoints/:id shows the error message on failure" do
     gr = GenerationRequest.create!(requirement: "count all events")
     gr.failed!(error_message: "Stopped after 5 iterations without success.")

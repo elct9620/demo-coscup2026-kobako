@@ -48,4 +48,12 @@ class MarkdownHelperTest < ActionView::TestCase
     assert_equal "", highlight_code("")
     assert_equal "", highlight_code(nil)
   end
+
+  # The endpoint script is LLM-authored and re-enters as HTML output, so this
+  # path needs the same XSS guarantee as render_markdown.
+  test "highlight_code neutralises HTML injected through the script" do
+    html = highlight_code("`</code><script>alert('xss')</script>`")
+
+    assert_not_includes html, "<script>"
+  end
 end
