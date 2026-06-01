@@ -1,5 +1,8 @@
 # COSCUP 2026 - Kobako Demo
 
+> [!WARNING]
+> 這個專案主要由 Claude Code 實作，設計跟細節沒有進行調整跟修正，不要當作正式專案的參考。
+
 展示 **[Kobako](https://github.com/elct9620/kobako)**（mruby-in-WASM 沙盒）如何安全執行不可信腳本的展示專案。場景是「自然語言生成唯讀 API 端點」：本地 LLM 生成的不可信 mruby 腳本在 Kobako 沙盒中試跑驗證，通過後即上線為 `GET /e/:slug`。
 
 | Kobako 特性 | 在這個 Demo 中如何體現 |
