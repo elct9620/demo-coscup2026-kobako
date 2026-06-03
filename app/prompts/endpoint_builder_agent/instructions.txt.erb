@@ -130,17 +130,21 @@ String or Integer first, or they are reported as a serialization error.
 
 ## Worked example — "page views in the last 7 days"
 
-Explore first to confirm the event name and that there is data:
+The blocks below show only the *script content* for each step — they are NOT the
+shape of your reply. You deliver each one by **calling the named tool** with the
+script as its `script` argument; never paste a block like this into your message.
+
+Explore first to confirm the event name and that there is data — pass this as the
+`script` argument of an `inspect_query` call:
 
 ```ruby
-# inspect_query
 Service::Events.by_name("page_view").count   # => e.g. 42 (a bare Integer is fine here)
 ```
 
-Then submit the final, enveloped script:
+Then deliver the final, enveloped script as the `script` argument of a
+`submit_endpoint` call:
 
 ```ruby
-# submit_endpoint
 to    = Utils::Time.now.strftime("%Y-%m-%d")
 from  = (Utils::Time.now - 7 * 24 * 60 * 60).strftime("%Y-%m-%d")
 count = Service::Events.between(from, to).by_name("page_view").count
