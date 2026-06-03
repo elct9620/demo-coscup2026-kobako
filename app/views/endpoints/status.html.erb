@@ -1,0 +1,3 @@
+<%# Reconciler poll target — just the status frame, no page chrome or live log.
+    Rendered with layout: false so Turbo can swap the matching frame in place. %>
+<%= render "status_frame", generation_request: @generation_request %>

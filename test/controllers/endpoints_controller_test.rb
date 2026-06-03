@@ -303,6 +303,91 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
   end
 
   # ---------------------------------------------------------------------------
+  # GET /endpoints/:id/status — the reconciler poll target
+  #
+  # The status-reconciler Stimulus controller reloads this frame on an interval
+  # so the operator UI converges to the terminal state even when the live status
+  # broadcast is missed — a run finishing before the Action Cable subscription is
+  # established (e.g. an instant "model not loaded" failure). It returns just the
+  # status frame: no page chrome, no live log.
+  # ---------------------------------------------------------------------------
+
+  test "GET /endpoints/:id/status returns the status frame for a pending run" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+
+    get status_endpoint_path(gr)
+
+    assert_response :ok
+    assert_select "turbo-frame[id='#{ActionView::RecordIdentifier.dom_id(gr)}']"
+    assert_select "[data-generation-finished]", count: 0
+  end
+
+  test "GET /endpoints/:id/status reports the terminal panel once failed" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+    gr.failed!(error_message: "本地模型服務未就緒或無回應，生成已中止：No models loaded.")
+
+    get status_endpoint_path(gr)
+
+    assert_response :ok
+    assert_select "[data-generation-finished]"
+    assert_select "p", text: /No models loaded/
+  end
+
+  test "GET /endpoints/:id/status reports the terminal panel once succeeded" do
+    endpoint = Endpoint.create!(script: "Service::Events.count")
+    gr = GenerationRequest.create!(requirement: "count all events")
+    gr.succeeded!(endpoint: endpoint)
+
+    get status_endpoint_path(gr)
+
+    assert_response :ok
+    assert_select "[data-generation-finished]"
+    assert_select "a[href='#{dynamic_endpoint_path(endpoint.slug)}']"
+  end
+
+  test "GET /endpoints/:id/status omits the page chrome and live log" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+
+    get status_endpoint_path(gr)
+
+    assert_select "turbo-cable-stream-source", count: 0
+    assert_select "[id='generation_log_#{gr.id}']", count: 0
+  end
+
+  test "GET /endpoints/:id/status returns 404 for unknown id" do
+    get status_endpoint_path(id: 9_999_999)
+    assert_response :not_found
+  end
+
+  # ---------------------------------------------------------------------------
+  # Status reconciler wiring (show) — closes the Action Cable subscribe race
+  #
+  # The status panel flips to its terminal form via a live broadcast, which can
+  # be missed when the run finishes before the browser subscribes. The show page
+  # arms the status-reconciler controller to poll the status frame back to the
+  # server until terminal; a run that is already terminal must NOT be polled.
+  # ---------------------------------------------------------------------------
+
+  test "GET /endpoints/:id arms the status reconciler for a pending run" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+
+    get endpoint_path(gr)
+
+    assert_select "[data-controller='status-reconciler']" \
+                  "[data-status-reconciler-url-value='#{status_endpoint_path(gr)}']" \
+                  "[data-status-reconciler-finished-value='false']"
+  end
+
+  test "GET /endpoints/:id seeds the reconciler as finished for a terminal run" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+    gr.failed!(error_message: "stopped")
+
+    get endpoint_path(gr)
+
+    assert_select "[data-controller='status-reconciler'][data-status-reconciler-finished-value='true']"
+  end
+
+  # ---------------------------------------------------------------------------
   # Turbo Stream subscription (#13)
   # ---------------------------------------------------------------------------
 

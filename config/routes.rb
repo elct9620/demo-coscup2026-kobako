@@ -19,6 +19,12 @@ Rails.application.routes.draw do
   # with the member id space, which the show action borrows for GenerationRequest.
   resources :endpoints, only: %i[index new create show] do
     delete :reset, on: :collection
+    # Reconciler poll target: returns just the current status frame so the
+    # status-reconciler Stimulus controller can converge the UI to the terminal
+    # state even when the live status broadcast is missed (a run finishing before
+    # the browser's Action Cable subscription is established — e.g. an instant
+    # "model not loaded" failure).
+    get :status, on: :member
   end
 
   # Operator demo tooling: inject a fresh batch of analytics events so an

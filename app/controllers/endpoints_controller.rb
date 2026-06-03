@@ -46,6 +46,19 @@ class EndpointsController < ApplicationController
     head :not_found
   end
 
+  # Current status frame, rendered without the page chrome or live log. The
+  # status-reconciler Stimulus controller reloads this on an interval so the
+  # operator UI converges to the terminal state even when the live status
+  # broadcast is missed — e.g. an instant LLM failure that completes before the
+  # browser's Action Cable subscription is established. The live broadcast still
+  # drives the happy path; this is the deterministic backstop.
+  def status
+    @generation_request = GenerationRequest.find(params[:id])
+    render layout: false
+  rescue ActiveRecord::RecordNotFound
+    head :not_found
+  end
+
   # Clear the board back to the fresh-demo state so the operator can re-run the
   # demo from scratch. Removes endpoints and their entire generation footprint
   # (requests, chats, messages, tool calls); the seeded event data is left

@@ -28,14 +28,20 @@
   </section>
 
   <%#
-    Turbo Frame "status" — replaced by GenerationRequest#broadcast_status_to_self
-    after succeeded! / failed! to show the final outcome without a page reload.
+    Status panel. The frame inside is updated by two paths: a live Turbo Stream
+    broadcast (GenerationRequest#broadcast_status_to_self — instant, happy path)
+    and the status-reconciler controller polling EndpointsController#status. The
+    reconciler closes the Action Cable subscribe race: a run can finish before
+    the browser subscribes (e.g. an instant LLM failure), and Action Cable does
+    not replay the missed broadcast — so the panel would stay stuck on
+    "Generating…". finished-value seeds the controller so an already-terminal run
+    is never polled.
   %>
-  <%= turbo_frame_tag dom_id(@generation_request) do %>
-    <div id="<%= dom_id(@generation_request) %>-status">
-      <%= render "status", generation_request: @generation_request %>
-    </div>
-  <% end %>
+  <div data-controller="status-reconciler"
+       data-status-reconciler-url-value="<%= status_endpoint_path(@generation_request) %>"
+       data-status-reconciler-finished-value="<%= !@generation_request.pending? %>">
+    <%= render "status_frame", generation_request: @generation_request %>
+  </div>
 
   <%#
     Generation log — each Message (LLM turn / tool call result) is appended here
