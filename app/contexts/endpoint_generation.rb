@@ -17,6 +17,10 @@
 #   - 有限迭代: IterationLimitError from the agent is rescued here; the caller
 #     never sees it.  Hitting the cap is a failure even if an earlier submission
 #     succeeded — the captured script is read only when the loop ends cleanly.
+#   - 終態保證: LLM transport / infrastructure errors (RubyLLM::Error, Faraday::Error
+#     — e.g. LMStudio unreachable or model not loaded) are also rescued into an
+#     ok:false result, never propagated.  This keeps every outcome terminal so the
+#     Job can mark the request failed and the operator UI leaves the pending state.
 #   - 驗證即上線: only the script captured by SubmitEndpointTool (sandbox-run +
 #     envelope-valid) is persisted.  No re-execution occurs before persisting.
 #   - 唯讀邊界: enforced deeper in ReadOnlySandbox — this context is unaware of
@@ -64,5 +68,14 @@ class EndpointGeneration
     { ok: false, error: e.message }
   rescue ActiveRecord::RecordInvalid => e
     { ok: false, error: e.message }
+  rescue RubyLLM::Error, Faraday::Error => e
+    # LLM transport / infrastructure failure: the local model is unreachable or
+    # unloaded (LMStudio JIT "model not loaded" → HTTP 400 → RubyLLM::Error, or
+    # the server is down → Faraday::Error). Convert to a terminal failure here so
+    # the Job marks the request failed and the operator UI leaves the pending
+    # state — instead of the exception escaping and stranding the request as
+    # "Generating…" with no way forward. We stop after this one attempt; retry is
+    # a backend concern, not part of this self-verification loop.
+    { ok: false, error: "本地模型服務未就緒或無回應，生成已中止：#{e.message}" }
   end
 end

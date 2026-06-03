@@ -168,6 +168,66 @@ class EndpointGenerationTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------------------------------
+  # Failure path — LLM transport / infrastructure error
+  #
+  # When the local model is unreachable or unloaded (e.g. LMStudio JIT replies
+  # "model not loaded" → HTTP 400 → RubyLLM::BadRequestError, or the server is
+  # down → Faraday::ConnectionFailed), #ask raises out of the agent loop. The
+  # context must convert this into a terminal ok:false result so the Job can mark
+  # the GenerationRequest failed — otherwise the request is stuck pending and the
+  # operator UI streams "Generating…" forever. The agent must NOT keep running.
+  # ---------------------------------------------------------------------------
+
+  test "returns ok:false when the LLM transport raises a RubyLLM error" do
+    agent = FakeTransportErrorAgent.new(RubyLLM::BadRequestError.new("Model not loaded. Please load a model."))
+
+    result = EndpointGeneration.new("count all events", agent: agent).call
+
+    assert_not result[:ok], "an LLM transport error must surface as a terminal failure, not propagate"
+  end
+
+  test "returns ok:false when the LLM transport connection fails" do
+    agent = FakeTransportErrorAgent.new(Faraday::ConnectionFailed.new("Connection refused"))
+
+    result = EndpointGeneration.new("count all events", agent: agent).call
+
+    assert_not result[:ok], "a connection failure must surface as a terminal failure"
+  end
+
+  test "does not raise the LLM transport error to the caller" do
+    agent = FakeTransportErrorAgent.new(RubyLLM::BadRequestError.new("Model not loaded."))
+
+    assert_nothing_raised do
+      EndpointGeneration.new("count all events", agent: agent).call
+    end
+  end
+
+  test "does not keep running after the LLM transport errors" do
+    agent = FakeTransportErrorAgent.new(RubyLLM::BadRequestError.new("Model not loaded."))
+
+    EndpointGeneration.new("count all events", agent: agent).call
+
+    assert_equal 1, agent.ask_count, "the agent must be asked once and then stop — no retry loop"
+  end
+
+  test "does not create an Endpoint when the LLM transport errors" do
+    agent = FakeTransportErrorAgent.new(RubyLLM::BadRequestError.new("Model not loaded."))
+
+    assert_no_difference "Endpoint.count" do
+      EndpointGeneration.new("count all events", agent: agent).call
+    end
+  end
+
+  test "failure result surfaces the underlying transport error message" do
+    agent = FakeTransportErrorAgent.new(RubyLLM::BadRequestError.new("Model not loaded."))
+
+    result = EndpointGeneration.new("count all events", agent: agent).call
+
+    assert result[:error].present?, "failure result must include an error message"
+    assert_match(/Model not loaded/, result[:error], "the underlying cause must be carried for diagnosis")
+  end
+
+  # ---------------------------------------------------------------------------
   # Interface contract
   # ---------------------------------------------------------------------------
 
@@ -240,6 +300,24 @@ class EndpointGenerationTest < ActiveSupport::TestCase
     def ask(_requirement)
       raise EndpointBuilderAgent::IterationLimitError,
             "Stopped after #{EndpointBuilderAgent::MAX_ITERATIONS} iterations without success."
+    end
+  end
+
+  # Simulates the local model being unreachable or unloaded: #ask raises an LLM
+  # transport error (RubyLLM::Error subclass or Faraday::Error). #ask_count pins
+  # that the context stops after one attempt rather than retrying.
+  class FakeTransportErrorAgent
+    attr_reader :captured_script, :ask_count
+
+    def initialize(error)
+      @error = error
+      @captured_script = nil
+      @ask_count = 0
+    end
+
+    def ask(_requirement)
+      @ask_count += 1
+      raise @error
     end
   end
 end

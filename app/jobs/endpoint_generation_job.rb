@@ -10,8 +10,11 @@
 #   - Enqueue EndpointGeneration on the default queue.
 #   - Update the GenerationRequest record with the outcome (succeeded / failed).
 #   - Log success (endpoint slug) or failure (error message).
-#   - Propagate unexpected infrastructure errors (e.g. LMStudio unreachable)
-#     so the queue adapter can apply its retry / dead-letter policy.
+#   - Propagate only truly-unexpected errors (programming bugs) so the queue
+#     adapter can surface them.  Known LLM transport failures (LMStudio
+#     unreachable / model not loaded) are NOT propagated here — EndpointGeneration
+#     rescues them into an ok:false result so the request reaches a terminal
+#     failed state and the operator UI leaves the pending stream.
 #
 # GenerationRequest lifecycle:
 #   pending  (created by EndpointsController#create)
