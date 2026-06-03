@@ -359,6 +359,24 @@ class EndpointsControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  # The status frame is only ever swapped programmatically — by the reconciler
+  # setting its src and by the live broadcast — never as a click-navigation
+  # context. Its terminal panels carry links the operator clicks (failed → "Try
+  # again" → the requirement form; succeeded → "View all live endpoints" and the
+  # live endpoint URL), all pointing at full pages with no matching frame.
+  # Without target="_top" Turbo treats such a click as an in-frame navigation,
+  # finds no matching <turbo-frame> in the response, and silently does nothing —
+  # the "Try again" button appears dead. The frame must escape to the top level
+  # so its links navigate the whole page.
+  test "GET /endpoints/:id/status targets the top level so the frame's links escape it" do
+    gr = GenerationRequest.create!(requirement: "count all events")
+    gr.failed!(error_message: "本地模型服務未就緒或無回應，生成已中止。")
+
+    get status_endpoint_path(gr)
+
+    assert_select "turbo-frame[id='#{ActionView::RecordIdentifier.dom_id(gr)}'][target='_top']"
+  end
+
   # ---------------------------------------------------------------------------
   # Status reconciler wiring (show) — closes the Action Cable subscribe race
   #

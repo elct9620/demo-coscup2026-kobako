@@ -7,8 +7,16 @@
        Stimulus controller, which reloads the frame on an interval until terminal
        — closing the Action Cable subscribe race when a run finishes before the
        browser subscribes (e.g. an instant "model not loaded" failure).
+
+  Both write paths drive the frame programmatically (broadcast replace / src
+  reload), so target: "_top" does not affect them — it only governs navigations
+  initiated by the frame's own links. The terminal panels carry links the
+  operator clicks ("Try again" → the form, "View all live endpoints", the live
+  endpoint URL), each a full page with no matching frame. Without _top, Turbo
+  would scope those clicks to this frame, find no matching frame in the response,
+  and silently do nothing. _top lets them navigate the whole page as intended.
 %>
-<%= turbo_frame_tag dom_id(generation_request) do %>
+<%= turbo_frame_tag dom_id(generation_request), target: "_top" do %>
   <div id="<%= dom_id(generation_request) %>-status">
     <%= render "status", generation_request: generation_request %>
   </div>
