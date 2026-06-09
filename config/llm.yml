@@ -4,4 +4,4 @@
 shared:
   api_base: "<%= ENV.fetch("LLM_API_BASE", "http://localhost:1234/v1") %>"
   api_key: "<%= ENV.fetch("LLM_API_KEY", "lm-studio") %>"
-  model: "<%= ENV.fetch("LLM_MODEL", "google/gemma-4-26b-a4b") %>" # 預設 LMStudio 模型，可用 ENV 覆寫
+  model: "<%= ENV.fetch("LLM_MODEL", "google/gemma-4-26b-a4b-qat") %>" # 預設 LMStudio 模型，可用 ENV 覆寫
