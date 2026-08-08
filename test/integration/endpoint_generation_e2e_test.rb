@@ -110,19 +110,22 @@ class EndpointGenerationE2eTest < ActionDispatch::IntegrationTest
     assert_response :ok,
                     "GET /e/#{endpoint.slug} must return 200; body=#{response.body.inspect}"
 
-    result = response.parsed_body
+    # Every submitted script clears ResponseSchema, so the replay body is the
+    # { "data" => ..., "meta" => {} } envelope and the count sits under "data".
+    count = assert_envelope(response.parsed_body)
+
     # The LLM may generate Service::Events.by_name("page_view").count (= 3)
     # or Service::Events.count (= 4 total).  Both are valid interpretations of
-    # "how many page_view events" — the key invariant is that the result is an
+    # "how many page_view events" — the key invariant is that the count is an
     # Integer reflecting the current DB state at replay time and is consistent
     # with the total event count in the DB (not some hardcoded value).
     total_event_count = Event.count
-    assert result.is_a?(Integer),
-           "Replay result must be an Integer (event count); got #{result.class}: #{result.inspect}"
-    assert result >= expected_page_view_count,
-           "Replay result (#{result}) must be >= page_view count (#{expected_page_view_count})"
-    assert result <= total_event_count,
-           "Replay result (#{result}) must be <= total event count (#{total_event_count})"
+    assert count.is_a?(Integer),
+           "Replay \"data\" must be an Integer (event count); got #{count.class}: #{count.inspect}"
+    assert count >= expected_page_view_count,
+           "Replay count (#{count}) must be >= page_view count (#{expected_page_view_count})"
+    assert count <= total_event_count,
+           "Replay count (#{count}) must be <= total event count (#{total_event_count})"
 
     # Replay latency: assert well under 500 ms (SPEC: 微秒級量級 after warm-up)
     assert elapsed_ms < 500,
@@ -186,16 +189,34 @@ class EndpointGenerationE2eTest < ActionDispatch::IntegrationTest
     get "/e/#{endpoint.slug}"
     assert_response :ok
 
-    replay_result = response.parsed_body
+    replay_count = assert_envelope(response.parsed_body)
 
     # Assert: replay result equals what the validated script returned during
     # generation (shared execution path invariant — "驗證即上線").
     # The LLM script counts events; since DB state has not changed, the count
     # must be consistent with total_at_generation_time.
-    assert replay_result.is_a?(Integer),
-           "Replay result must be an Integer; got #{replay_result.class}: #{replay_result.inspect}"
-    assert_equal total_at_generation_time, replay_result,
-                 "Replay result (#{replay_result}) must match total event count " \
+    assert replay_count.is_a?(Integer),
+           "Replay \"data\" must be an Integer; got #{replay_count.class}: #{replay_count.inspect}"
+    assert_equal total_at_generation_time, replay_count,
+                 "Replay count (#{replay_count}) must match total event count " \
                  "at generation time (#{total_at_generation_time})"
+  end
+
+  private
+
+  # Assert the replay body carries the ResponseSchema envelope and return the
+  # value under "data".  SubmitEndpointTool rejects any script whose return
+  # value fails this shape, so an endpoint that reached persistence cannot
+  # answer with a bare scalar — asserting it here keeps that guardrail visible
+  # from the end of the chain, where a regression would otherwise read as the
+  # LLM having generated something odd.
+  def assert_envelope(body)
+    assert_kind_of Hash, body,
+                   "Replay body must be the response envelope Hash; got #{body.class}: #{body.inspect}"
+    assert body.key?("data"), "Replay envelope must carry \"data\"; got keys #{body.keys.inspect}"
+    assert body.key?("meta"), "Replay envelope must carry \"meta\"; got keys #{body.keys.inspect}"
+    assert_kind_of Hash, body["meta"],
+                   "Replay envelope \"meta\" must be a Hash; got #{body["meta"].class}"
+    body["data"]
   end
 end
