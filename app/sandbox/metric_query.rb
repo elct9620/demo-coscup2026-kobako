@@ -17,7 +17,7 @@
 #   Layer 2 — SQL boundary: every DB hit runs inside connected_to(role: :reading).
 #
 # Usage (bound in ReadOnlySandbox via #5):
-#   sandbox.define(:Service).bind(:Metrics, MetricQuery.new)
+#   sandbox.bind("Service::Metrics", MetricQuery.new)
 #
 # Script examples:
 #   Service::Metrics.daily_counts(since: "2026-01-01")

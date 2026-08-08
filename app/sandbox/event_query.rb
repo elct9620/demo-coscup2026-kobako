@@ -17,7 +17,7 @@
 #   Layer 2 — SQL boundary: every DB hit runs inside connected_to(role: :reading).
 #
 # Usage (bound in ReadOnlySandbox via #5):
-#   sandbox.define(:Service).bind(:Events, EventQuery.new)
+#   sandbox.bind("Service::Events", EventQuery.new)
 #
 # Script example:
 #   Service::Events.between("2026-01-01", "2026-05-31").by_name("page_view").count

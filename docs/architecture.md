@@ -87,7 +87,7 @@ GET /e/:slug?params...
 
 | 技術 | gem / 版本 | 所在層 | 用法重點 |
 |------|-----------|--------|----------|
-| **Kobako** | `kobako` ~> 0.6.1 | sandbox / Interaction | mruby-in-WASM 沙盒。`Kobako::Sandbox.new(timeout:, memory_limit:)`；`#define(:NS).bind(:Member, obj)` 綁定唯讀 Service；`#run(target, *args, **kwargs)` / `#eval`；非 wire 型別自動轉 `Handle` 代理供鏈式呼叫（限單次調用）；MessagePack 為唯一 wire codec；guest 與宿主隔離（無 require/網路/檔案/ENV）為 Kobako 設計保證，唯讀則由兩層防禦達成（見下）；每次調用以全新 mrb_state 執行、per-invocation 狀態重置，Service 綁定於首次調用後封存。 |
+| **Kobako** | `kobako` ~> 0.22.0 | sandbox / Interaction | mruby-in-WASM 沙盒。`Kobako::Sandbox.new(timeout:, memory_limit:)`；`#bind("NS::Member", obj)` 以常數路徑綁定唯讀 Service（回傳 self 可鏈式）；`#run(target, *args, **kwargs)` / `#eval` 回傳凍結的 `Kobako::Execution`，值取自 `#value`，`#stdout`/`#stderr`/`#usage` 亦掛其上（失敗時由錯誤的 `#execution` 帶回）；非 wire 型別自動轉 `Handle` 代理供鏈式呼叫（限單次調用）；MessagePack 為唯一 wire codec；guest 與宿主隔離（無 require/網路/檔案/ENV）為 Kobako 設計保證，唯讀則由兩層防禦達成（見下）；每次調用以全新 mrb_state 執行、per-invocation 狀態重置，Service 綁定於首次調用後封存。 |
 | **RubyLLM** | `ruby_llm` ~> 1.15 | agents / tools | `EndpointBuilderAgent < RubyLLM::Agent`（macros：`model`、`instructions`、`tools`）；兩個 `RubyLLM::Tool`（`desc` + `execute`）：`InspectQueryTool`、`SubmitEndpointTool`，後者以實例註冊（`with_tool`）供讀回 `captured_script`；指令置於 `app/prompts/`；串流委派 `complete`/`each`。 |
 | **LMStudio** | （外部，OpenAI 相容） | — | 預設 `http://localhost:1234/v1`；`config.openai_use_system_role = true`；Agent 用 `model "<id>", provider: :openai, assume_model_exists: true`。 |
 | **Hotwire** | `turbo-rails`、`stimulus-rails` | 框架支援 | 生成 UI 與表單互動。 |

@@ -21,7 +21,7 @@
 # adds a clock, not a capability to mutate or reach outside the sandbox.
 #
 # Usage (bound in ReadOnlySandbox):
-#   sandbox.define(:Utils).bind(:Time, Clock.new)
+#   sandbox.bind("Utils::Time", Clock.new)
 #
 # Script example:
 #   Utils::Time.now.strftime("%Y-%m-%d")                      # => "2026-05-31"

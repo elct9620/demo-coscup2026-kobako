@@ -89,19 +89,18 @@ class ReadOnlySandbox
     validation = validate_params(params)
     return validation unless validation.nil?
 
-    sandbox = build_sandbox(params)
-    value   = sandbox.eval(script)
-    { ok: true, result: value }
-  rescue Kobako::TimeoutError => e
-    error_result("TimeoutError", e)
-  rescue Kobako::MemoryLimitError => e
-    error_result("MemoryLimitError", e)
+    sandbox   = build_sandbox(params)
+    execution = sandbox.eval(script)
+    { ok: true, result: execution.value }
+  # Wasm-engine layer — TrapError plus its TimeoutError / MemoryLimitError
+  # subclasses.  Carries no guest-side diagnostics: the guest never returned.
   rescue Kobako::TrapError => e
-    error_result("TrapError", e)
-  rescue Kobako::ServiceError => e
-    error_result("ServiceError", e, structured_details(e))
-  rescue Kobako::SandboxError => e
-    error_result("SandboxError", e, structured_details(e))
+    error_result(error_type_for(e), e)
+  # Guest layer — SandboxError (script/protocol failure) and ServiceError
+  # (unrescued capability failure), both Diagnosable.  Named as siblings, so
+  # one rescue cannot stand for the other.
+  rescue Kobako::ServiceError, Kobako::SandboxError => e
+    error_result(error_type_for(e), e, structured_details(e))
   end
 
   private
@@ -148,14 +147,24 @@ class ReadOnlySandbox
   # is the sole way a script can obtain the current time to build relative date
   # ranges.  It is a pure read-only capability (see Clock).
   def build_sandbox(params)
-    sandbox = Kobako::Sandbox.new(timeout: @timeout, memory_limit: @memory_limit)
-    sandbox.define(:Service)
-           .bind(:Events,  EventQuery.new)
-           .bind(:Metrics, MetricQuery.new)
-           .bind(:Params,  ParamsQuery.new(params))
-    sandbox.define(:Utils)
-           .bind(:Time, Clock.new)
-    sandbox
+    Kobako::Sandbox.new(timeout: @timeout, memory_limit: @memory_limit)
+                   .bind("Service::Events",  EventQuery.new)
+                   .bind("Service::Metrics", MetricQuery.new)
+                   .bind("Service::Params",  ParamsQuery.new(params))
+                   .bind("Utils::Time",      Clock.new)
+  end
+
+  # Name the error by its own Kobako class rather than by the branch that
+  # caught it, so a subclass reaches the LLM as itself: NoServiceError ("that
+  # method is not there") and ServiceArgumentError ("the arguments do not fit")
+  # call for different corrections, and collapsing both into "ServiceError"
+  # would hide which one to make.
+  #
+  # DynamicEndpointsController::ERROR_STATUS falls back to 500 for a name it
+  # does not list, so a class added by a future Kobako release still maps to a
+  # sane status without a change here.
+  def error_type_for(exception)
+    exception.class.name.delete_prefix("Kobako::")
   end
 
   def error_result(type, exception, details = nil)
@@ -166,16 +175,16 @@ class ReadOnlySandbox
 
   # Extract the structured panic envelope from SandboxError / ServiceError.
   #
-  # These carry the guest-side failure context (mruby class, origin, backtrace,
-  # and any extra details) that #6 feeds back to the LLM so it can self-correct.
+  # Both mix in Kobako::Diagnosable, which carries the guest-side failure
+  # context (mruby class, origin, backtrace) that #6 feeds back to the LLM so
+  # it can self-correct.
   def structured_details(exception)
     return nil unless exception.respond_to?(:klass)
 
     {
       klass:           exception.klass,
       origin:          exception.origin,
-      backtrace_lines: exception.backtrace_lines,
-      details:         exception.details
+      backtrace_lines: exception.backtrace_lines
     }.compact
   end
 end

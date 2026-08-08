@@ -55,7 +55,7 @@ LLM 生成功能需要本機 **LMStudio 在 `http://localhost:1234/v1` 運行**�
 
 ## 關鍵慣例與注意事項
 
-- **沿用函式庫原生慣例，別造包裝層**：RubyLLM（`app/agents`、`app/tools`、`app/prompts` + `acts_as_*` models）與 Kobako（`Sandbox#define.bind` 綁 Service、`#run`/`#eval`、`Handle` 代理、MessagePack wire codec）直接以原生 API 使用。先讀函式庫文件再決定要不要包裝。
+- **沿用函式庫原生慣例，別造包裝層**：RubyLLM（`app/agents`、`app/tools`、`app/prompts` + `acts_as_*` models）與 Kobako（`Sandbox#bind("NS::Member", obj)` 綁 Service、`#run`/`#eval` 回傳 `Execution`（值取 `#value`）、`Handle` 代理、MessagePack wire codec）直接以原生 API 使用。先讀函式庫文件再決定要不要包裝。
 - **LLM 設定走 `config_for(:llm)`**：環境相關的結構化設定置於 `config/llm.yml`（ERB 取 ENV），於 `config/application.rb` 載入為 `config.llm`，再於 `config/initializers/ruby_llm.rb` 套用。不要把 `ENV.fetch` 塞回 `config.x`。
 - **RubyLLM 用新版 acts_as**：initializer 已設 `config.use_new_acts_as = true`；勿退回 legacy `acts_as` API（會有 deprecation 警告）。
 - **資料庫**：dev/test 為單一 SQLite；多資料庫（`cache`/`queue`/`cable` 各自獨立 SQLite）只在 production。`solid_*` 在 dev 走 memory/async。

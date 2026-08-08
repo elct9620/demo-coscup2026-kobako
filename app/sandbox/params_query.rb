@@ -19,7 +19,7 @@
 # should apply conversion inside the script (e.g. `param.to_i`).
 #
 # Usage (bound in ReadOnlySandbox):
-#   sandbox.define(:Service).bind(:Params, ParamsQuery.new(params))
+#   sandbox.bind("Service::Params", ParamsQuery.new(params))
 #
 # Script example:
 #   Service::Params.fetch("name")     # => "page_view" or nil
