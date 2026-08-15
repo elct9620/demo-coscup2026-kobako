@@ -73,4 +73,4 @@ gem "tailwindcss-rails", "~> 4.4"
 # Rouge syntax-highlights the fenced code blocks.  Both pure-Ruby-friendly and
 # Node-free, in keeping with the importmap/Propshaft asset posture.
 gem "redcarpet", "~> 3.6"
-gem "rouge", "~> 4.5"
+gem "rouge", "~> 5.1"
