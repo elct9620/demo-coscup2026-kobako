@@ -62,7 +62,7 @@ group :test do
   gem "selenium-webdriver"
 end
 
-gem "kobako", "~> 0.22.0"
+gem "kobako", "~> 0.26.0"
 
 gem "ruby_llm", "~> 1.15"
 
