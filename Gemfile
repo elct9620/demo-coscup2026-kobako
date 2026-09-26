@@ -64,7 +64,7 @@ end
 
 gem "kobako", "~> 0.22.0"
 
-gem "ruby_llm", "~> 1.15"
+gem "ruby_llm", "~> 2.0"
 
 gem "tailwindcss-rails", "~> 4.4"
 
